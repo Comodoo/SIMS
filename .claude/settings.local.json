@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(pnpm --version)",
+      "PowerShell(Get-Process node -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(cd \"d:\\\\DocumentsBackup\\\\Dev\\\\SIMS\"; $env:NEXT_PRIVATE_SKIP_TURBOPACK = \"1\"; pnpm dev)"
+    ]
+  }
+}
