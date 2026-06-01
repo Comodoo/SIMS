@@ -339,16 +339,47 @@ export const GET_REPORTS = gql`
   }
 `;
 
-// Parent queries
-export const GET_PARENT_CHILDREN = gql`
-  query GetParentChildren($parentId: ID!) {
-    childrenByParent(parentId: $parentId) {
-      parent {
-        parentId
-        name
+// Subject-Teacher queries
+export const GET_SUBJECT_TEACHERS = gql`
+  query GetSubjectTeachers($subjectId: ID, $teacherId: ID) {
+    subjectTeachers(subjectId: $subjectId, teacherId: $teacherId) {
+      id
+      subjectId
+      subjectName
+      isPrimary
+      assignedAt
+      teacher {
+        id
+        staffNumber
+        position
+        user {
+          firstName
+          lastName
+          email
+        }
       }
-      student {
-        studentId
+    }
+  }
+`;
+
+// Timetable queries
+export const GET_TIMETABLE = gql`
+  query GetTimetable($semesterId: ID, $classGroup: String, $teacherId: ID, $dayOfWeek: String) {
+    timetable(semesterId: $semesterId, classGroup: $classGroup, teacherId: $teacherId, dayOfWeek: $dayOfWeek) {
+      id
+      classGroup
+      dayOfWeek
+      startTime
+      endTime
+      room
+      semesterName
+      subject {
+        id
+        name
+        courseCode
+      }
+      teacher {
+        id
         user {
           firstName
           lastName
@@ -358,19 +389,42 @@ export const GET_PARENT_CHILDREN = gql`
   }
 `;
 
-export const GET_CHILD_ATTENDANCE = gql`
-  query GetChildAttendance($studentId: ID!) {
-    studentAttendance(studentId: $studentId) {
-      attId
-      user {
-        userId
+// Result card queries
+export const GET_RESULT_CARDS = gql`
+  query GetResultCards($studentId: ID, $semesterId: ID, $subjectId: ID) {
+    resultCards(studentId: $studentId, semesterId: $semesterId, subjectId: $subjectId) {
+      id
+      semesterName
+      cat1Score
+      cat2Score
+      examScore
+      totalScore
+      gradeLetter
+      remarks
+      computedAt
+      student {
+        id
+        studentNumber
         firstName
         lastName
       }
-      timestamp
+      subject {
+        id
+        name
+        courseCode
+      }
+    }
+  }
+`;
+
+export const GET_STUDENT_ATTENDANCE_BY_SUBJECT = gql`
+  query GetStudentAttendance($studentId: ID, $dateFrom: String, $dateTo: String) {
+    studentAttendanceRecords(studentId: $studentId, dateFrom: $dateFrom, dateTo: $dateTo) {
+      id
+      studentId
+      courseId
+      date
       status
-      isLate
-      notes
     }
   }
 `;

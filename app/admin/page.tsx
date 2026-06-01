@@ -13,7 +13,7 @@ const ADMIN_DASHBOARD_QUERY = `
     students(limit: 1000) {
       id
     }
-    staff(limit: 100) {
+    staffMembers(limit: 100) {
       id
     }
     courses(limit: 100) {
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
         const response = await query('adminDashboard', ADMIN_DASHBOARD_QUERY, {}, token);
         
         const students = response.students || [];
-        const staff = response.staff || [];
+        const staff = response.staffMembers || [];
         const courses = response.courses || [];
         const attendance = response.attendance || [];
 

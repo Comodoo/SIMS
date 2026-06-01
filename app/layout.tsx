@@ -1,8 +1,6 @@
 import { DemoBanner } from '@/components/shared/demo-banner'
 import { AuthProvider } from '@/lib/auth-context'
-import { ChatProvider } from '@/lib/chat-context'
 import { LanguageProvider } from '@/lib/language-context'
-import { LMSProvider } from '@/lib/lms-context'
 import { NotificationsProvider } from '@/lib/notifications-context'
 import { ThemeProvider } from '@/lib/theme-context'
 import { Analytics } from '@vercel/analytics/next'
@@ -47,14 +45,10 @@ export default function RootLayout({
         <ThemeProvider>
           <LanguageProvider>
             <AuthProvider>
-              <LMSProvider>
                 <NotificationsProvider>
-                  <ChatProvider>
-                    <DemoBanner />
-                    {children}
-                  </ChatProvider>
+                  <DemoBanner />
+                  {children}
                 </NotificationsProvider>
-              </LMSProvider>
             </AuthProvider>
           </LanguageProvider>
         </ThemeProvider>

@@ -4,59 +4,55 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
-import { BookOpen, Clock, User } from 'lucide-react';
+import { BookOpen, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+const STUDENT_PROFILE_QUERY = `
+  query StudentProfile($userId: ID!) {
+    studentByUser(userId: $userId) {
+      id
+      student_number
+    }
+  }
+`;
 
 const STUDENT_COURSES_QUERY = `
   query StudentCourses($studentId: ID!) {
     enrollments(studentId: $studentId, limit: 50) {
       id
       status
-      midtermGrade
-      finalGrade
-      letterGrade
+      semester
+      academic_year
+      midterm_grade
+      final_grade
+      letter_grade
       course {
         id
-        courseCode
+        course_code
         name
         credits
-        isActive
+        status
       }
     }
   }
 `;
 
-interface Course {
-  id: string;
-  courseCode: string;
-  name: string;
-  credits: number;
-  isActive: boolean;
-}
-
-interface Enrollment {
-  id: string;
-  status: string;
-  midtermGrade: string | null;
-  finalGrade: number | null;
-  letterGrade: string | null;
-  course: Course;
-}
-
 export default function StudentCoursesPage() {
   const { user, token } = useAuth();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!user || !token) return;
+
     const fetchCourses = async () => {
       try {
-        const data = await query(
-          STUDENT_COURSES_QUERY,
-          { studentId: user?.id },
-          token || undefined
-        );
+        const profileRes = await query<any>(STUDENT_PROFILE_QUERY, { userId: user.id }, token);
+        const profile = profileRes.studentByUser;
+        if (!profile) { setLoading(false); return; }
+
+        const data = await query<any>(STUDENT_COURSES_QUERY, { studentId: profile.id }, token);
         setEnrollments(data.enrollments || []);
       } catch (err) {
         setError('Failed to load courses');
@@ -66,14 +62,12 @@ export default function StudentCoursesPage() {
       }
     };
 
-    if (user?.id) {
-      fetchCourses();
-    }
+    fetchCourses();
   }, [user?.id, token]);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[200px]">
         <div className="text-lg">Loading courses...</div>
       </div>
     );
@@ -81,7 +75,7 @@ export default function StudentCoursesPage() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[200px]">
         <div className="text-red-500">{error}</div>
       </div>
     );
@@ -111,14 +105,14 @@ export default function StudentCoursesPage() {
               <CardHeader>
                 <CardTitle className="flex items-start justify-between">
                   <div>
-                    <div className="text-sm text-muted-foreground mb-1">
-                      {enrollment.course.courseCode}
+                    <div className="text-sm text-muted-foreground mb-1 font-mono">
+                      {enrollment.course.course_code}
                     </div>
                     <div className="text-lg">{enrollment.course.name}</div>
                   </div>
-                  <span className={`px-2 py-1 rounded-full text-xs ${
-                    enrollment.status === 'active' 
-                      ? 'bg-green-100 text-green-800' 
+                  <span className={`px-2 py-1 rounded-full text-xs flex-shrink-0 ${
+                    enrollment.status === 'active'
+                      ? 'bg-green-100 text-green-800'
                       : 'bg-gray-100 text-gray-800'
                   }`}>
                     {enrollment.status}
@@ -126,26 +120,29 @@ export default function StudentCoursesPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <Clock className="h-4 w-4 mr-2" />
-                  <span>{enrollment.course.credits} Credits</span>
+                <div className="flex items-center text-sm text-muted-foreground gap-2">
+                  <Clock className="h-4 w-4" />
+                  <span>{enrollment.course.credits} Credit{enrollment.course.credits !== 1 ? 's' : ''}</span>
+                  {enrollment.semester && (
+                    <span className="ml-auto text-xs">{enrollment.semester}</span>
+                  )}
                 </div>
-                
-                {enrollment.finalGrade !== null && (
+
+                {enrollment.letter_grade && (
                   <div className="border-t pt-4">
                     <div className="text-sm font-medium mb-2">Current Grade</div>
                     <div className="flex items-center justify-between">
-                      <span className="text-2xl font-bold">
-                        {enrollment.letterGrade || 'N/A'}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {enrollment.finalGrade.toFixed(1)}%
-                      </span>
+                      <span className="text-2xl font-bold">{enrollment.letter_grade}</span>
+                      {enrollment.final_grade != null && (
+                        <span className="text-muted-foreground">
+                          {Number(enrollment.final_grade).toFixed(1)}%
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
 
-                <Button className="w-full" variant="outline">
+                <Button className="w-full" variant="outline" size="sm">
                   View Details
                 </Button>
               </CardContent>

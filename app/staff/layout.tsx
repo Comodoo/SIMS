@@ -1,6 +1,6 @@
 'use client';
 
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -10,18 +10,18 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 import {
     Award,
     Bell,
     BookOpen,
+    Calendar,
     ChevronDown,
-    FileText,
     Fingerprint,
     GraduationCap,
     LayoutDashboard,
     LogOut,
     Menu,
-    Shield,
     User
 } from 'lucide-react';
 import Link from 'next/link';
@@ -33,11 +33,11 @@ import { ProtectedRoute } from '@/components/shared/protected-route';
 
 const navigation = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
-  { name: 'My Courses', href: '/staff/courses', icon: BookOpen },
-  { name: 'Assignments', href: '/staff/assignments', icon: FileText },
+  { name: 'My Subjects', href: '/staff/subjects', icon: BookOpen },
+  { name: 'Timetable', href: '/staff/timetable', icon: Calendar },
   { name: 'Grade Submissions', href: '/staff/grading', icon: Award },
   { name: 'Biometric Attendance', href: '/staff/attendance', icon: Fingerprint },
-  { name: 'Leave Requests', href: '/staff/leave', icon: Shield },
+  { name: 'My Profile', href: '/staff/profile', icon: User },
 ];
 
 export default function StaffLayout({ children }: { children: React.ReactNode }) {
@@ -100,12 +100,13 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
             <div className="border-t p-4">
               <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${displayUser.name}`} />
-                  <AvatarFallback>{displayUser.name?.charAt(0) || 'T'}</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-sm">
+                    {displayUser.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'ST'}
+                  </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{displayUser.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">Staff</p>
+                  <p className="text-xs text-muted-foreground truncate capitalize">{authUser?.role ?? 'staff'}</p>
                 </div>
               </div>
               <Button
@@ -152,6 +153,9 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
 
             {/* Right side actions */}
             <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <ThemeToggle variant="icon" />
+
               {/* Notifications */}
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
@@ -163,13 +167,17 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
               {/* User menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2">
+                  <Button variant="ghost" className="gap-2 pl-2 pr-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${displayUser.name}`} />
-                      <AvatarFallback>{displayUser.name?.charAt(0) || 'T'}</AvatarFallback>
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold text-xs">
+                        {displayUser.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'ST'}
+                      </AvatarFallback>
                     </Avatar>
-                    <span className="hidden sm:inline">{displayUser.name}</span>
-                    <ChevronDown className="h-4 w-4" />
+                    <div className="hidden sm:flex flex-col items-start leading-none">
+                      <span className="text-sm font-medium">{displayUser.name}</span>
+                      <span className="text-xs text-muted-foreground capitalize">{authUser?.role ?? 'staff'}</span>
+                    </div>
+                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">

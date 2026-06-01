@@ -1,235 +1,261 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
-import { BookOpen, Calendar, FileText, Shield, Users } from 'lucide-react';
+import { Award, BookOpen, Calendar, ClipboardList, Fingerprint, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-const STAFF_DASHBOARD_QUERY = `
-  query StaffDashboard($staffId: ID!) {
-    staff(id: $staffId) {
+const PAGE_SIZE = 5;
+
+function Paginator({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const to = Math.min(page * PAGE_SIZE, total);
+  return (
+    <div className="flex items-center justify-between px-4 py-3 border-t bg-muted/20">
+      <span className="text-xs text-muted-foreground">{total === 0 ? 'No records' : `${from}–${to} of ${total}`}</span>
+      <div className="flex items-center gap-1">
+        <button disabled={page <= 1} onClick={() => onChange(page - 1)}
+          className="px-2 py-1 rounded border bg-background text-xs disabled:opacity-40 hover:bg-muted transition-colors">‹</button>
+        {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+          <button key={p} onClick={() => onChange(p)}
+            className={`w-7 h-7 rounded text-xs font-medium transition-colors ${p === page ? 'bg-primary text-primary-foreground' : 'border bg-background hover:bg-muted'}`}>
+            {p}
+          </button>
+        ))}
+        <button disabled={page >= totalPages} onClick={() => onChange(page + 1)}
+          className="px-2 py-1 rounded border bg-background text-xs disabled:opacity-40 hover:bg-muted transition-colors">›</button>
+      </div>
+    </div>
+  );
+}
+
+const STAFF_PROFILE_QUERY = `
+  query StaffProfile($userId: ID!) {
+    staffByUser(userId: $userId) {
       id
-      first_name
-      last_name
-      employee_number
-    }
-    courses(instructorId: $staffId, limit: 50) {
-      id
-      course_code
-      name
-      credits
-      level
-      department
-    }
-    submissions(limit: 100) {
-      id
-      grade
-      submitted_at
-      assignment {
-        id
-        title
-        course {
-          id
-          course_code
-          name
-        }
-      }
-      student {
-        id
-        first_name
-        last_name
-        student_number
-      }
-    }
-    enrollments(limit: 100) {
-      id
-      student {
-        id
-        first_name
-        last_name
-      }
-      course {
-        id
-        course_code
-        name
-      }
+      staff_number
+      position
+      is_active
+      user { id first_name last_name email }
     }
   }
 `;
 
+const STAFF_DATA_QUERY = `
+  query StaffData($staffId: ID!) {
+    subjectTeachers(teacherId: $staffId) {
+      id
+      subjectId
+      subjectName
+      isPrimary
+      assignedAt
+    }
+    attendance(userId: $staffId, limit: 200) {
+      id
+      status
+      timestamp
+      is_late
+    }
+    enrollments(limit: 2000) {
+      id
+      status
+      course { id }
+    }
+    resultCards {
+      id
+      subject { id }
+    }
+  }
+`;
+
+interface SubjectAssignment {
+  id: string;
+  subjectId: string;
+  subjectName: string;
+  isPrimary: boolean;
+  assignedAt: string;
+}
+
 export default function StaffDashboard() {
   const { user, token } = useAuth();
-  const [stats, setStats] = useState({
-    myCourses: 0,
-    totalStudents: 0,
-    pendingGrading: 0,
-    leaveBalance: 18, // Default value until HR module is implemented
-  });
+  const [staffId, setStaffId] = useState<string | null>(null);
+  const [subjects, setSubjects] = useState<SubjectAssignment[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+  const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
+  const [allResultCards, setAllResultCards] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user || !token) return;
 
-    const fetchDashboardData = async () => {
+    async function fetchData() {
       try {
-        const response = await query('staffDashboard', STAFF_DASHBOARD_QUERY, { staffId: user.id }, token);
-        
-        const courses = response.courses || [];
-        const submissions = response.submissions || [];
-        const enrollments = response.enrollments || [];
-        
-        // Count courses taught by this staff
-        const myCourses = courses.length;
-        
-        // Count unique students across all courses
-        const uniqueStudents = new Set(enrollments.map((e: any) => e.student.id)).size;
-        
-        // Count submissions without grades
-        const pendingGrading = submissions.filter((s: any) => !s.grade).length;
-        
-        setStats({
-          myCourses,
-          totalStudents: uniqueStudents,
-          pendingGrading,
-          leaveBalance: 18, // TODO: Fetch from HR module when implemented
-        });
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
+        // Step 1: get staff profile to obtain staff_id
+        const profileRes = await query<any>(STAFF_PROFILE_QUERY, { userId: user!.id }, token!);
+        const staffProfile = profileRes.staffByUser;
+        if (!staffProfile) { setLoading(false); return; }
+
+        const sid = staffProfile.id;
+        setStaffId(sid);
+
+        // Step 2: fetch subjects and attendance using staff_id
+        const dataRes = await query<any>(STAFF_DATA_QUERY, { staffId: sid }, token!);
+        setSubjects(dataRes.subjectTeachers ?? []);
+        setAttendanceRecords(dataRes.attendance ?? []);
+        setAllEnrollments(dataRes.enrollments ?? []);
+        setAllResultCards(dataRes.resultCards ?? []);
+      } catch (err) {
+        console.error('Staff dashboard error:', err);
       } finally {
         setLoading(false);
       }
-    };
+    }
 
-    fetchDashboardData();
+    fetchData();
   }, [user, token]);
 
+  const today = new Date().toISOString().split('T')[0];
+  const todayRecords = attendanceRecords.filter(a => a.timestamp?.startsWith(today));
+  const checkedInToday = todayRecords.some(a => a.status === 'in');
+  const lateToday = todayRecords.some(a => a.is_late);
+
+  const mySubjectIds = new Set(subjects.map(s => s.subjectId));
+  // Active enrollments across my subjects
+  const myEnrollments = allEnrollments.filter(e => e.status === 'active' && mySubjectIds.has(e.course.id));
+  const myStudentCount = myEnrollments.length;
+  // Result cards already computed for my subjects
+  const myGradedCount = allResultCards.filter(rc => mySubjectIds.has(rc.subject.id)).length;
+
+  const primarySubjects = subjects.filter(s => s.isPrimary);
+  const otherSubjects = subjects.filter(s => !s.isPrimary);
+  const [subjectsPage, setSubjectsPage] = useState(1);
+  const pagedSubjects = [...primarySubjects, ...otherSubjects].slice((subjectsPage - 1) * PAGE_SIZE, subjectsPage * PAGE_SIZE);
+
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Staff Dashboard</h1>
+    <div className="space-y-6">
+      {/* Welcome */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Staff Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.first_name}! Manage your courses, students, and attendance.
+          Welcome back, {user?.first_name}! Here&apos;s your teaching overview.
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid md:grid-cols-4 gap-4 mb-8">
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Courses</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">My Subjects</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? '...' : stats.myCourses}</div>
-            <p className="text-xs text-muted-foreground">Active courses</p>
+            <div className="text-2xl font-bold">{loading ? '…' : subjects.length}</div>
+            <p className="text-xs text-muted-foreground">
+              {primarySubjects.length} primary
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
+            <Fingerprint className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? '...' : stats.totalStudents}</div>
-            <p className="text-xs text-muted-foreground">Across all courses</p>
+            <div className="text-2xl font-bold">
+              {loading ? '…' : checkedInToday ? (lateToday ? 'Late' : 'In') : 'Out'}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Today · {attendanceRecords.length} total records
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Grading</CardTitle>
-            <FileText className="h-4 w-4 text-muted-foreground" />
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Grading</CardTitle>
+            <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{loading ? '...' : stats.pendingGrading}</div>
-            <p className="text-xs text-muted-foreground">Submissions to grade</p>
+            <div className="text-2xl font-bold">{loading ? '…' : myGradedCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Result cards saved ·{' '}
+              <Link href="/staff/grading" className="text-primary hover:underline">Grade students</Link>
+            </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Leave Balance</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Timetable</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.leaveBalance}</div>
-            <p className="text-xs text-muted-foreground">Days remaining</p>
+            <div className="text-2xl font-bold">—</div>
+            <p className="text-xs text-muted-foreground">
+              <Link href="/staff/timetable" className="text-primary hover:underline">View schedule</Link>
+            </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-          <Link href="/staff/courses">
-            <BookOpen className="h-6 w-6" />
-            <span>My Courses</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-          <Link href="/staff/grading">
-            <FileText className="h-6 w-6" />
-            <span>Grade Submissions</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-          <Link href="/staff/attendance">
-            <Calendar className="h-6 w-6" />
-            <span>Mark Attendance</span>
-          </Link>
-        </Button>
-        <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-          <Link href="/staff/leave">
-            <Shield className="h-6 w-6" />
-            <span>Leave Requests</span>
-          </Link>
-        </Button>
+      {/* Quick actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { href: '/staff/subjects', icon: BookOpen, label: 'My Subjects' },
+          { href: '/staff/timetable', icon: Calendar, label: 'Timetable' },
+          { href: '/staff/grading', icon: Award, label: 'Grading' },
+          { href: '/staff/attendance', icon: ClipboardList, label: 'Attendance' },
+        ].map(({ href, icon: Icon, label }) => (
+          <Button key={href} variant="outline" className="h-16 flex flex-col gap-1.5" asChild>
+            <Link href={href}>
+              <Icon className="h-5 w-5" />
+              <span className="text-xs">{label}</span>
+            </Link>
+          </Button>
+        ))}
       </div>
 
-      {/* Recent Activity */}
+      {/* Assigned subjects */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activity</CardTitle>
+          <CardTitle className="text-base flex items-center gap-2">
+            <BookOpen className="h-4 w-4" />
+            My Assigned Subjects
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                <FileText className="h-5 w-5 text-blue-500" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">Assignment graded</p>
-                <p className="text-sm text-muted-foreground">Python Project - Student: John Doe (85/100)</p>
-              </div>
-              <div className="text-sm text-muted-foreground">1 hour ago</div>
+          {loading ? (
+            <div className="space-y-2">
+              {[1, 2, 3].map(i => <div key={i} className="h-10 bg-muted rounded animate-pulse" />)}
             </div>
-
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                <Calendar className="h-5 w-5 text-green-500" />
+          ) : subjects.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No subjects assigned yet. Contact the admin to get assigned.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                {pagedSubjects.map(s => (
+                  <div key={s.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {s.isPrimary && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                      <span className="font-medium text-sm">{s.subjectName}</span>
+                    </div>
+                    <Badge variant={s.isPrimary ? 'default' : 'secondary'}>
+                      {s.isPrimary ? 'Primary' : 'Support'}
+                    </Badge>
+                  </div>
+                ))}
               </div>
-              <div className="flex-1">
-                <p className="font-medium">Attendance marked</p>
-                <p className="text-sm text-muted-foreground">Python for Data Science - 45 students present</p>
-              </div>
-              <div className="text-sm text-muted-foreground">3 hours ago</div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-full bg-purple-500/10 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-purple-500" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium">Leave request approved</p>
-                <p className="text-sm text-muted-foreground">Annual leave - 5 days (Dec 20-25)</p>
-              </div>
-              <div className="text-sm text-muted-foreground">Yesterday</div>
-            </div>
-          </div>
+              <Paginator page={subjectsPage} total={subjects.length} onChange={setSubjectsPage} />
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

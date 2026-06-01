@@ -20,6 +20,14 @@ import { query } from '@/lib/graphql';
 import { ChevronDown, GraduationCap, Info } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
+const STUDENT_PROFILE_QUERY = `
+  query StudentProfile($userId: ID!) {
+    studentByUser(userId: $userId) {
+      id
+    }
+  }
+`;
+
 const ENROLLMENTS_QUERY = `
   query Enrollments($studentId: ID!) {
     enrollments(studentId: $studentId, limit: 100) {
@@ -35,7 +43,6 @@ const ENROLLMENTS_QUERY = `
         course_code
         name
         credits
-        level
         department
       }
     }
@@ -53,7 +60,11 @@ export default function StudentGradesPage() {
 
     const fetchGrades = async () => {
       try {
-        const response = await query('enrollments', ENROLLMENTS_QUERY, { studentId: user.id }, token);
+        const profileRes = await query<any>(STUDENT_PROFILE_QUERY, { userId: user.id }, token);
+        const profile = profileRes.studentByUser;
+        if (!profile) { setLoading(false); return; }
+
+        const response = await query<any>(ENROLLMENTS_QUERY, { studentId: profile.id }, token);
         setEnrollments(response.enrollments || []);
       } catch (error) {
         console.error('Failed to fetch grades:', error);

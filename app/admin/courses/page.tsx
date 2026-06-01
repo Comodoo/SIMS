@@ -79,8 +79,7 @@ const ADMIN_COURSES_QUERY = `
       academic_year
       staff {
         id
-        first_name
-        last_name
+        user { first_name last_name }
       }
     }
   }
@@ -88,10 +87,11 @@ const ADMIN_COURSES_QUERY = `
 
 const ADMIN_FORM_DATA_QUERY = `
   query AdminFormData {
-    staff(limit: 100) {
+    staffMembers(limit: 100) {
       id
-      first_name
-      last_name
+      staff_number
+      position
+      user { id first_name last_name }
     }
     departments {
       id
@@ -260,7 +260,7 @@ export default function AdminCoursesPage() {
         
         if (formRes) {
           setFormData({
-            staff: formRes.staff || [],
+            staff: formRes.staffMembers || [],
             departments: formRes.departments || [],
             semesters: formRes.semesters || [],
           });
@@ -471,7 +471,7 @@ export default function AdminCoursesPage() {
                           <AvatarImage src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${course.staff?.first_name}`} />
                           <AvatarFallback>{course.staff?.first_name?.slice(0, 1)}{course.staff?.last_name?.slice(0, 1)}</AvatarFallback>
                         </Avatar>
-                        <span className="text-sm">{course.staff ? `${course.staff.first_name} ${course.staff.last_name}` : 'No Instructor'}</span>
+                        <span className="text-sm">{course.staff ? `${course.staff.user?.first_name} ${course.staff.user?.last_name}` : 'No Instructor'}</span>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -552,7 +552,7 @@ export default function AdminCoursesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {formData.staff.map((s: any) => (
-                    <SelectItem key={s.id} value={s.id}>{s.first_name} {s.last_name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.user?.first_name} {s.user?.last_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

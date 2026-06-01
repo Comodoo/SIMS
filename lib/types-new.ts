@@ -7,7 +7,7 @@
 // 1. CORE USER MANAGEMENT (Users Table)
 // ============================================================================
 
-export type UserRole = 'admin' | 'staff' | 'student' | 'parent';
+export type UserRole = 'admin' | 'staff' | 'student';
 
 export interface User {
   user_id: string;
@@ -50,7 +50,6 @@ export interface Student {
   // Relations
   user?: User;
   enrollments?: Enrollment[];
-  parents?: Parent[];
   attendance_records?: StudentAttendance[];
 }
 
@@ -117,9 +116,6 @@ export interface StudentAttendance {
   marked_by: string; // Staff ID who marked attendance
   marked_at: Date;
   notes?: string;
-  // Parent notification tracking
-  parent_notified: boolean;
-  notification_sent_at?: Date;
   // Relations
   student?: Student;
   course?: Course;
@@ -192,7 +188,7 @@ export interface Enrollment {
 // 7. ANNOUNCEMENTS SYSTEM (Announcements Table)
 // ============================================================================
 
-export type AnnouncementTarget = 'all' | 'students' | 'staff' | 'parents' | 'specific_course';
+export type AnnouncementTarget = 'all' | 'students' | 'staff' | 'specific_course';
 export type AnnouncementPriority = 'low' | 'normal' | 'high' | 'urgent';
 
 export interface Announcement {
@@ -305,42 +301,61 @@ export interface Submission {
 }
 
 // ============================================================================
-// 11. PARENTS (Parents Table)
+// 11. SUBJECT-TEACHER ASSIGNMENT
 // ============================================================================
 
-export interface Parent {
-  parent_id: string;
-  user_id?: string; // Optional FK to Users (if parent has portal access)
-  first_name: string;
-  last_name: string;
-  phone: string; // Primary contact for SMS
-  email?: string;
-  relationship: 'father' | 'mother' | 'guardian' | 'other';
-  address?: string;
-  emergency_contact: boolean;
-  // Relations - Parents can have multiple students
-  students?: Student[];
-  // Notification preferences
-  notification_prefs?: {
-    absence_alerts: boolean;
-    grade_updates: boolean;
-    general_announcements: boolean;
-  };
-}
-
-// Link table for Parent-Student relationship
-export interface ParentStudentLink {
-  link_id: string;
-  parent_id: string;
-  student_id: string;
+export interface SubjectTeacher {
+  id: string;
+  subject_id: string;
+  subject_name: string;
+  teacher: Staff;
   is_primary: boolean;
-  // Relations
-  parent?: Parent;
-  student?: Student;
+  assigned_at: Date;
 }
 
 // ============================================================================
-// 12. REPORTS (Reports Table)
+// 12. TIMETABLE (Weekly Schedule Slots)
+// ============================================================================
+
+export type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday';
+
+export interface TimetableSlot {
+  timetable_id: string;
+  subject: Course;
+  teacher?: Staff;
+  semester_id: string;
+  semester_name: string;
+  class_group: string;
+  day_of_week: DayOfWeek;
+  start_time: string; // "HH:MM"
+  end_time: string;   // "HH:MM"
+  room?: string;
+  created_at: Date;
+}
+
+// ============================================================================
+// 13. RESULT CARD (Per-student, per-subject, per-semester result)
+// ============================================================================
+
+export type GradeLetter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
+
+export interface ResultCard {
+  result_id: string;
+  student: Student;
+  subject: Course;
+  semester_id: string;
+  semester_name: string;
+  cat1_score?: number;
+  cat2_score?: number;
+  exam_score?: number;
+  total_score?: number;
+  grade_letter?: GradeLetter;
+  remarks?: string;
+  computed_at: Date;
+}
+
+// ============================================================================
+// 14. REPORTS (Reports Table)
 // ============================================================================
 
 export type ReportType = 

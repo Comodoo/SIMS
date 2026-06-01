@@ -4,51 +4,54 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
-import { BookOpen, Calendar, Clock, Users } from 'lucide-react';
+import { BookOpen, Star, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
+
+const STAFF_PROFILE_QUERY = `
+  query StaffProfile($userId: ID!) {
+    staffByUser(userId: $userId) {
+      id
+      staff_number
+      position
+    }
+  }
+`;
 
 const STAFF_COURSES_QUERY = `
   query StaffCourses($staffId: ID!) {
-    courses(instructorId: $staffId, limit: 50) {
+    subjectTeachers(teacherId: $staffId) {
       id
-      course_code
-      name
-      credits
-      level
-      department
-      schedule
+      subjectId
+      subjectName
+      isPrimary
+      assignedAt
     }
-    enrollments(limit: 100) {
+    enrollments(limit: 2000) {
       id
-      course {
-        id
-        course_code
-        name
-      }
-      student {
-        id
-        first_name
-        last_name
-      }
+      course { id }
+      student { id first_name last_name student_number }
     }
   }
 `;
 
 export default function StaffCoursesPage() {
   const { user, token } = useAuth();
-  const [courses, setCourses] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user || !token) return;
 
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
-        const response = await query('staffCourses', STAFF_COURSES_QUERY, { staffId: user.id }, token);
-        
-        setCourses(response.courses || []);
-        setEnrollments(response.enrollments || []);
+        const profileRes = await query<any>(STAFF_PROFILE_QUERY, { userId: user.id }, token);
+        const profile = profileRes.staffByUser;
+        if (!profile) { setLoading(false); return; }
+
+        const dataRes = await query<any>(STAFF_COURSES_QUERY, { staffId: profile.id }, token);
+        setSubjects(dataRes.subjectTeachers ?? []);
+        setEnrollments(dataRes.enrollments ?? []);
       } catch (error) {
         console.error('Failed to fetch courses:', error);
       } finally {
@@ -56,39 +59,42 @@ export default function StaffCoursesPage() {
       }
     };
 
-    fetchCourses();
+    fetchData();
   }, [user, token]);
 
-  // Calculate stats
-  const totalCourses = courses.length;
-  const totalStudents = new Set(enrollments.map((e: any) => e.student.id)).size;
-  const avgClassSize = totalCourses > 0 ? Math.round(totalStudents / totalCourses) : 0;
-  const upcomingClasses = courses.filter((c: any) => c.schedule && c.schedule.includes('Mon') || c.schedule?.includes('Tue')).length;
+  const getStudentCount = (subjectId: string) =>
+    enrollments.filter((e: any) => e.course?.id === subjectId).length;
 
-  if (loading) {
-    return <div>Loading courses...</div>;
-  }
+  const getStudents = (subjectId: string) =>
+    enrollments.filter((e: any) => e.course?.id === subjectId).map((e: any) => e.student);
+
+  const primarySubjects = subjects.filter(s => s.isPrimary);
+  const otherSubjects = subjects.filter(s => !s.isPrimary);
+  const totalStudents = new Set(
+    subjects.flatMap(s => getStudents(s.subjectId).map((st: any) => st.id))
+  ).size;
+
+  if (loading) return <div className="p-6">Loading courses...</div>;
 
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">My Courses</h1>
-        <p className="text-muted-foreground">Manage your courses and view student enrollment</p>
+        <p className="text-muted-foreground">Subjects you are assigned to teach</p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid md:grid-cols-4 gap-4 mb-8">
+      {/* Stats */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Subjects</CardTitle>
             <BookOpen className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalCourses}</div>
-            <p className="text-xs text-muted-foreground">Active courses</p>
+            <div className="text-2xl font-bold">{subjects.length}</div>
+            <p className="text-xs text-muted-foreground">{primarySubjects.length} primary</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Students</CardTitle>
@@ -96,80 +102,67 @@ export default function StaffCoursesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">Across all courses</p>
+            <p className="text-xs text-muted-foreground">Across all subjects</p>
           </CardContent>
         </Card>
-
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Class Size</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Primary Subjects</CardTitle>
+            <Star className="h-4 w-4 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{avgClassSize}</div>
-            <p className="text-xs text-muted-foreground">Students per class</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{upcomingClasses}</div>
-            <p className="text-xs text-muted-foreground">Classes scheduled</p>
+            <div className="text-2xl font-bold">{primarySubjects.length}</div>
+            <p className="text-xs text-muted-foreground">{otherSubjects.length} support</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Courses List */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {courses.map((course) => {
-          const courseEnrollments = enrollments.filter((e: any) => e.course.id === course.id);
-          const studentCount = courseEnrollments.length;
-          
-          return (
-            <Card key={course.id}>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{course.name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{course.course_code}</p>
+      {/* Subject cards */}
+      {subjects.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No subjects assigned</h3>
+            <p className="text-muted-foreground text-center text-sm">
+              Contact the admin to get assigned to subjects.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid md:grid-cols-2 gap-6">
+          {[...primarySubjects, ...otherSubjects].map((subject) => {
+            const studentCount = getStudentCount(subject.subjectId);
+            return (
+              <Card key={subject.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      {subject.isPrimary && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 flex-shrink-0" />}
+                      <CardTitle className="text-lg">{subject.subjectName}</CardTitle>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${
+                      subject.isPrimary
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {subject.isPrimary ? 'Primary' : 'Support'}
+                    </span>
                   </div>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                    Active
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                    <span>{studentCount} students enrolled</span>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+                    <Users className="h-4 w-4" />
+                    <span>{studentCount} student{studentCount !== 1 ? 's' : ''} enrolled</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span>{course.schedule || 'TBD'}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span>{course.department || 'General'}</span>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    View Students
+                  <Button variant="outline" size="sm" className="w-full" asChild>
+                    <a href={`/staff/grading`}>Grade Students</a>
                   </Button>
-                  <Button variant="outline" size="sm" className="flex-1">
-                    Take Attendance
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

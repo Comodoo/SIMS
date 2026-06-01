@@ -53,7 +53,10 @@ export async function graphqlRequest<T>(
     }
 
     if (data.errors) {
-      console.error('GraphQL errors:', data.errors);
+      data.errors.forEach((e: any) => {
+        const path = e.path?.join('.') ?? '?';
+        console.error(`[GraphQL] ${e.message}  (path: ${path})`);
+      });
     }
 
     return data;

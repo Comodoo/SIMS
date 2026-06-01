@@ -403,16 +403,126 @@ export const CREATE_REPORT_SCHEDULE = gql`
   }
 `;
 
-// Parent mutations
-export const CREATE_PARENT = gql`
-  mutation CreateParent($input: ParentInput!) {
-    createParent(input: $input) {
-      parent {
-        parentId
-        name
-        phone
-        email
+// Subject-teacher assignment mutations
+export const ASSIGN_TEACHER_TO_SUBJECT = gql`
+  mutation AssignTeacherToSubject($input: AssignTeacherInput!, $assignedById: ID!) {
+    assignTeacherToSubject(input: $input, assignedById: $assignedById) {
+      success
+      message
+      assignment {
+        id
+        subjectId
+        subjectName
+        isPrimary
+        assignedAt
+        teacher {
+          id
+          user {
+            firstName
+            lastName
+          }
+        }
       }
+    }
+  }
+`;
+
+export const REMOVE_TEACHER_FROM_SUBJECT = gql`
+  mutation RemoveTeacherFromSubject($subjectId: ID!, $teacherId: ID!) {
+    removeTeacherFromSubject(subjectId: $subjectId, teacherId: $teacherId) {
+      success
+      message
+    }
+  }
+`;
+
+// Timetable mutations
+export const CREATE_TIMETABLE_SLOT = gql`
+  mutation CreateTimetableSlot($input: TimetableInput!) {
+    createTimetableSlot(input: $input) {
+      success
+      message
+      slot {
+        id
+        classGroup
+        dayOfWeek
+        startTime
+        endTime
+        room
+        subject {
+          id
+          name
+          courseCode
+        }
+        teacher {
+          id
+          user { firstName lastName }
+        }
+      }
+    }
+  }
+`;
+
+export const UPDATE_TIMETABLE_SLOT = gql`
+  mutation UpdateTimetableSlot($slotId: ID!, $input: TimetableInput!) {
+    updateTimetableSlot(slotId: $slotId, input: $input) {
+      success
+      message
+      slot {
+        id
+        classGroup
+        dayOfWeek
+        startTime
+        endTime
+        room
+      }
+    }
+  }
+`;
+
+export const DELETE_TIMETABLE_SLOT = gql`
+  mutation DeleteTimetableSlot($slotId: ID!) {
+    deleteTimetableSlot(slotId: $slotId) {
+      success
+      message
+    }
+  }
+`;
+
+// Result card mutations
+export const COMPUTE_RESULT_CARD = gql`
+  mutation ComputeResultCard($input: ResultCardInput!, $computedById: ID!) {
+    computeResultCard(input: $input, computedById: $computedById) {
+      success
+      message
+      result {
+        id
+        semesterName
+        cat1Score
+        cat2Score
+        examScore
+        totalScore
+        gradeLetter
+        remarks
+        student {
+          id
+          firstName
+          lastName
+        }
+        subject {
+          id
+          name
+          courseCode
+        }
+      }
+    }
+  }
+`;
+
+// Biometric attendance mutation
+export const MARK_BIOMETRIC_ATTENDANCE = gql`
+  mutation MarkStudentBiometricAttendance($studentId: ID!, $courseId: ID!, $biometricHash: String!) {
+    markStudentBiometricAttendance(studentId: $studentId, courseId: $courseId, biometricHash: $biometricHash) {
       success
       message
     }

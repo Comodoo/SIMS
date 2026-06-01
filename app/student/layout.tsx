@@ -14,19 +14,20 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  LayoutDashboard, BookOpen, FileText, Calendar, Award,
-  Bell, Menu, LogOut, User, ChevronDown, GraduationCap
+  LayoutDashboard, BookOpen, Calendar, Award,
+  Bell, Menu, LogOut, User, ChevronDown, GraduationCap, ClipboardList
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth-context';
 import { ProtectedRoute } from '@/components/shared/protected-route';
+import { ThemeToggle } from '@/components/shared/theme-toggle';
 
 const navigation = [
   { name: 'Dashboard', href: '/student', icon: LayoutDashboard },
-  { name: 'My Courses', href: '/student/courses', icon: BookOpen },
-  { name: 'Assignments', href: '/student/assignments', icon: FileText },
-  { name: 'Attendance', href: '/student/attendance', icon: Calendar },
-  { name: 'Grades', href: '/student/grades', icon: Award },
+  { name: 'Subjects', href: '/student/subjects', icon: BookOpen },
+  { name: 'Timetable', href: '/student/timetable', icon: Calendar },
+  { name: 'Results', href: '/student/results', icon: Award },
+  { name: 'Attendance', href: '/student/attendance', icon: ClipboardList },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {
@@ -141,6 +142,9 @@ export default function StudentLayout({ children }: { children: React.ReactNode 
 
             {/* Right side actions */}
             <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <ThemeToggle variant="icon" />
+
               {/* Notifications */}
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />

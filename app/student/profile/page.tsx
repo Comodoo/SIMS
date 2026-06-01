@@ -10,8 +10,8 @@ import { Mail, Phone, MapPin, Calendar, BookOpen, GraduationCap } from 'lucide-r
 import { useEffect, useState } from 'react';
 
 const STUDENT_PROFILE_QUERY = `
-  query StudentProfile($studentId: ID!) {
-    student(id: $studentId) {
+  query StudentProfile($userId: ID!) {
+    studentByUser(userId: $userId) {
       id
       student_number
       first_name
@@ -24,11 +24,7 @@ const STUDENT_PROFILE_QUERY = `
       section
       academic_year
       programme
-      user {
-        username
-        email
-        phone
-      }
+      user { username email phone }
     }
   }
 `;
@@ -43,8 +39,8 @@ export default function StudentProfilePage() {
 
     const fetchProfile = async () => {
       try {
-        const response = await query<any>(STUDENT_PROFILE_QUERY, { studentId: user.id }, token);
-        setStudent(response.student);
+        const response = await query<any>(STUDENT_PROFILE_QUERY, { userId: user.id }, token);
+        setStudent(response.studentByUser);
       } catch (error) {
         console.error('Failed to fetch student profile:', error);
       } finally {
