@@ -113,8 +113,16 @@ interface Department { id: string; name: string; code: string; }
 
 const ROLE_COLORS: Record<string, string> = {
   admin: 'bg-purple-100 text-purple-800',
-  staff: 'bg-blue-100 text-blue-800',
+  it_technician: 'bg-blue-100 text-blue-800',
+  staff: 'bg-cyan-100 text-cyan-800',
   student: 'bg-green-100 text-green-800',
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Admin',
+  it_technician: 'IT Technician',
+  staff: 'Teacher',
+  student: 'Student',
 };
 
 const emptyForm = {
@@ -313,7 +321,8 @@ export default function AdminUsersPage() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="staff">Staff / Teacher</SelectItem>
+                    <SelectItem value="staff">Teacher</SelectItem>
+                    <SelectItem value="it_technician">IT Technician</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -397,28 +406,28 @@ export default function AdminUsersPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            <div><p className="text-2xl font-bold">{counts.total}</p><p className="text-xs text-muted-foreground">Total users</p></div>
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><Users className="h-6 w-6 text-blue-600" /></div>
+            <div><p className="text-2xl font-bold text-blue-800">{counts.total}</p><p className="text-xs text-blue-600 font-medium">Total users</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <GraduationCap className="h-8 w-8 text-green-500" />
-            <div><p className="text-2xl font-bold">{counts.students}</p><p className="text-xs text-muted-foreground">Students</p></div>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><GraduationCap className="h-6 w-6 text-green-600" /></div>
+            <div><p className="text-2xl font-bold text-green-800">{counts.students}</p><p className="text-xs text-green-600 font-medium">Students</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <UserCheck className="h-8 w-8 text-blue-500" />
-            <div><p className="text-2xl font-bold">{counts.staff}</p><p className="text-xs text-muted-foreground">Staff / Teachers</p></div>
+        <Card className="bg-gradient-to-br from-cyan-50 to-sky-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><UserCheck className="h-6 w-6 text-cyan-600" /></div>
+            <div><p className="text-2xl font-bold text-cyan-800">{counts.staff}</p><p className="text-xs text-cyan-600 font-medium">Teachers</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <Shield className="h-8 w-8 text-purple-500" />
-            <div><p className="text-2xl font-bold">{counts.admins}</p><p className="text-xs text-muted-foreground">Admins</p></div>
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><Shield className="h-6 w-6 text-purple-600" /></div>
+            <div><p className="text-2xl font-bold text-purple-800">{counts.admins}</p><p className="text-xs text-purple-600 font-medium">Admins</p></div>
           </CardContent>
         </Card>
       </div>
@@ -469,7 +478,7 @@ export default function AdminUsersPage() {
                     <TableCell className="text-sm text-muted-foreground">{u.username}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{u.email}</TableCell>
                     <TableCell>
-                      <Badge className={`capitalize ${ROLE_COLORS[u.role] ?? ''}`}>{u.role}</Badge>
+                      <Badge className={`${ROLE_COLORS[u.role] ?? ''}`}>{ROLE_LABELS[u.role] ?? u.role}</Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={u.is_active ? 'default' : 'secondary'}>

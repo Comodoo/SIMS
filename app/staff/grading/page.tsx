@@ -505,6 +505,7 @@ export default function StaffGradingPage() {
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null);
   const [gradePage, setGradePage] = useState(1);
   const [assignPage, setAssignPage] = useState(1);
+  const [subPages, setSubPages] = useState<Record<string, number>>({});
 
   const [scoreDialogStudent, setScoreDialogStudent] = useState<StudentInfo | null>(null);
   const [gradingSubmission, setGradingSubmission] = useState<Submission | null>(null);
@@ -751,6 +752,8 @@ export default function StaffGradingPage() {
                 ) : assignments.slice((assignPage - 1) * PAGE_SIZE, assignPage * PAGE_SIZE).map(a => {
                   const isExpanded = expandedAssignmentId === a.id;
                   const subs = submissionsMap[a.id];
+                  const subPage = subPages[a.id] ?? 1;
+                  const pagedSubs = subs ? subs.slice((subPage - 1) * PAGE_SIZE, subPage * PAGE_SIZE) : [];
                   const pending = subs?.filter(s => s.status === 'submitted').length ?? 0;
                   const graded = subs?.filter(s => s.status === 'graded').length ?? 0;
 
@@ -813,7 +816,7 @@ export default function StaffGradingPage() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {subs.map(sub => {
+                                {pagedSubs.map(sub => {
                                   const enrollment = enrollments.find(e => e.student.id === sub.student.id);
                                   const name = enrollment
                                     ? `${enrollment.student.user.first_name} ${enrollment.student.user.last_name}`
@@ -863,6 +866,13 @@ export default function StaffGradingPage() {
                                 })}
                               </TableBody>
                             </Table>
+                          )}
+                          {subs && subs.length > PAGE_SIZE && (
+                            <Paginator
+                              page={subPage}
+                              total={subs.length}
+                              onChange={p => setSubPages(prev => ({ ...prev, [a.id]: p }))}
+                            />
                           )}
                         </CardContent>
                       )}

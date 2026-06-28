@@ -250,14 +250,14 @@ export default function AdminReportsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total reports',  value: history.length },
-          { label: 'Completed',      value: history.filter(r => r.status === 'completed').length },
-          { label: 'This month',     value: history.filter(r => r.generatedAt?.startsWith(new Date().toISOString().slice(0, 7))).length },
-          { label: 'Report types',   value: TYPES.length },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-xl border bg-card p-4">
-            <p className="text-2xl font-bold">{setupLoading ? '—' : value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{label}</p>
+          { label: 'Total reports',  value: history.length,                                                                               bg: 'bg-gradient-to-br from-blue-50 to-indigo-100',   color: 'text-blue-800'  },
+          { label: 'Completed',      value: history.filter(r => r.status === 'completed').length,                                         bg: 'bg-gradient-to-br from-green-50 to-emerald-100', color: 'text-green-800' },
+          { label: 'This month',     value: history.filter(r => r.generatedAt?.startsWith(new Date().toISOString().slice(0, 7))).length,  bg: 'bg-gradient-to-br from-amber-50 to-yellow-100',  color: 'text-amber-800' },
+          { label: 'Report types',   value: TYPES.length,                                                                                 bg: 'bg-gradient-to-br from-purple-50 to-violet-100', color: 'text-purple-800' },
+        ].map(({ label, value, bg, color }) => (
+          <div key={label} className={`rounded-xl ${bg} border-0 p-4 shadow-sm`}>
+            <p className={`text-2xl font-bold ${color}`}>{setupLoading ? '—' : value}</p>
+            <p className="text-xs text-gray-600 font-medium mt-1">{label}</p>
           </div>
         ))}
       </div>

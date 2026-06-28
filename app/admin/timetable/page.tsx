@@ -59,10 +59,10 @@ const DELETE_SLOT_MUTATION = `
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'] as const;
 const DAY_LABELS: Record<string, string> = {
   monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday',
-  thursday: 'Thursday', friday: 'Friday', saturday: 'Saturday',
+  thursday: 'Thursday', friday: 'Friday',
 };
 
 // ---------------------------------------------------------------------------
@@ -633,23 +633,25 @@ export default function AdminTimetablePage() {
 
       {/* ── Batch Create Dialog ── */}
       <Dialog open={createOpen} onOpenChange={o => { setCreateOpen(o); if (!o) setBatchError(''); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="!max-w-[95vw] w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Add Timetable Slots</DialogTitle>
-            <p className="text-sm text-muted-foreground">
-              Pick a subject, teacher, and day — then add a row for each class group and time.
+            <DialogTitle className="text-xl">Add Timetable Slots</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Pick a subject, teacher, and day — then add a row for each class group and time slot.
             </p>
           </DialogHeader>
 
-          <div className="overflow-y-auto flex-1 pr-1 space-y-5 pt-2">
-            {batchError && <p className="text-sm text-destructive">{batchError}</p>}
+          <div className="overflow-y-auto flex-1 pr-1 space-y-6 pt-3">
+            {batchError && <p className="text-sm text-destructive bg-red-50 border border-red-200 rounded-lg px-4 py-2">{batchError}</p>}
 
             {/* Subject + Teacher + Day */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1">
-                <Label>Subject *</Label>
+            <div className="bg-muted/30 rounded-xl p-4 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Step 1 — Select Subject, Teacher &amp; Day</p>
+              <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Subject *</Label>
                 <Select value={batchSubjectId} onValueChange={setBatchSubjectId}>
-                  <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Select subject" /></SelectTrigger>
                   <SelectContent>
                     {subjects.map(s => (
                       <SelectItem key={s.id} value={s.id}>
@@ -659,10 +661,10 @@ export default function AdminTimetablePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Teacher *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Teacher *</Label>
                 <Select value={batchTeacherId} onValueChange={setBatchTeacherId}>
-                  <SelectTrigger><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Select teacher" /></SelectTrigger>
                   <SelectContent>
                     {staff.map(s => (
                       <SelectItem key={s.id} value={s.id}>
@@ -672,30 +674,34 @@ export default function AdminTimetablePage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label>Day *</Label>
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Day *</Label>
                 <Select value={batchDay} onValueChange={setBatchDay}>
-                  <SelectTrigger><SelectValue placeholder="Select day" /></SelectTrigger>
+                  <SelectTrigger className="h-10"><SelectValue placeholder="Select day" /></SelectTrigger>
                   <SelectContent>
                     {DAYS.map(d => <SelectItem key={d} value={d}>{DAY_LABELS[d]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            </div>
 
             {/* Class group + time rows */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Class Groups &amp; Times</Label>
-                <span className="text-xs text-muted-foreground">{batchRows.length} row{batchRows.length !== 1 ? 's' : ''}</span>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Step 2 — Class Groups &amp; Time Slots</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Add one row per class group and time slot</p>
+                </div>
+                <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">{batchRows.length} row{batchRows.length !== 1 ? 's' : ''}</span>
               </div>
 
               {/* Header row */}
-              <div className="grid grid-cols-[1fr_1fr_90px_90px_90px_32px] gap-2 text-xs font-medium text-muted-foreground">
+              <div className="grid grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_120px_120px_120px_36px] gap-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
                 <span>Level *</span>
-                <span>Class *</span>
-                <span>Start *</span>
-                <span>End *</span>
+                <span>Class Group *</span>
+                <span>Start Time *</span>
+                <span>End Time *</span>
                 <span>Room</span>
                 <span />
               </div>
@@ -705,10 +711,10 @@ export default function AdminTimetablePage() {
                 {batchRows.map((row, i) => {
                   const subs = subsOf(row.classGroupLevel);
                   return (
-                    <div key={i} className="grid grid-cols-[1fr_1fr_90px_90px_90px_32px] gap-2 items-center">
+                    <div key={i} className="grid grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_120px_120px_120px_36px] gap-3 items-center bg-background rounded-lg border px-3 py-2">
                       {/* Step 1 — level */}
                       <Select value={row.classGroupLevel} onValueChange={v => updateRow(i, 'classGroupLevel', v)}>
-                        <SelectTrigger className="h-9"><SelectValue placeholder="Level…" /></SelectTrigger>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Level…" /></SelectTrigger>
                         <SelectContent>
                           {topLevelGroups.map(g => (
                             <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
@@ -721,7 +727,7 @@ export default function AdminTimetablePage() {
                         onValueChange={v => updateRow(i, 'classGroup', v)}
                         disabled={!row.classGroupLevel}
                       >
-                        <SelectTrigger className="h-9">
+                        <SelectTrigger className="h-10">
                           <SelectValue placeholder={!row.classGroupLevel ? '—' : subs.length === 0 ? row.classGroupLevel : 'Class…'} />
                         </SelectTrigger>
                         <SelectContent>
@@ -743,19 +749,19 @@ export default function AdminTimetablePage() {
                         type="time"
                         value={row.startTime}
                         onChange={e => updateRow(i, 'startTime', e.target.value)}
-                        className="h-9"
+                        className="h-10"
                       />
                       <Input
                         type="time"
                         value={row.endTime}
                         onChange={e => updateRow(i, 'endTime', e.target.value)}
-                        className="h-9"
+                        className="h-10"
                       />
                       <Input
-                        placeholder="Rm 12"
+                        placeholder="Room 12"
                         value={row.room}
                         onChange={e => updateRow(i, 'room', e.target.value)}
-                        className="h-9"
+                        className="h-10"
                       />
                       <button
                         type="button"
@@ -798,7 +804,7 @@ export default function AdminTimetablePage() {
 
       {/* ── Edit Dialog (single slot) ── */}
       <Dialog open={editOpen} onOpenChange={o => { setEditOpen(o); if (!o) setEditError(''); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Timetable Slot</DialogTitle>
           </DialogHeader>

@@ -54,7 +54,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
   const displayUser = authUser ? { 
     name: `${authUser.first_name} ${authUser.last_name}`, 
     email: authUser.email 
-  } : { name: 'Staff User', email: 'staff@example.com' };
+  } : { name: 'Teacher', email: 'teacher@example.com' };
 
   const NavItems = ({ mobile = false }: { mobile?: boolean }) => (
     <nav className="space-y-1">
@@ -88,7 +88,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
             {/* Logo */}
             <div className="flex h-16 items-center gap-2 border-b px-6">
               <GraduationCap className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">Staff Portal</span>
+              <span className="text-lg font-bold">Teacher Portal</span>
             </div>
 
             {/* Navigation */}
@@ -106,7 +106,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{displayUser.name}</p>
-                  <p className="text-xs text-muted-foreground truncate capitalize">{authUser?.role ?? 'staff'}</p>
+                  <p className="text-xs text-muted-foreground truncate">Teacher</p>
                 </div>
               </div>
               <Button
@@ -137,7 +137,7 @@ export default function StaffLayout({ children }: { children: React.ReactNode })
                 <div className="flex h-full flex-col">
                   <div className="flex h-16 items-center gap-2 border-b px-6">
                     <GraduationCap className="h-6 w-6 text-primary" />
-                    <span className="text-lg font-bold">Staff Portal</span>
+                    <span className="text-lg font-bold">Teacher Portal</span>
                   </div>
                   <div className="flex-1 overflow-y-auto p-4">
                     <NavItems mobile />

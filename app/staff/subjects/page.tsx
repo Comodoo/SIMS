@@ -403,30 +403,30 @@ export default function StaffSubjectsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
           <CardContent className="pt-4 flex items-center gap-3">
-            <BookOpen className="h-7 w-7 text-primary flex-shrink-0" />
+            <div className="p-2 rounded-xl bg-white/70"><BookOpen className="h-6 w-6 text-blue-600 flex-shrink-0" /></div>
             <div>
-              <p className="text-2xl font-bold">{subjects.length}</p>
-              <p className="text-xs text-muted-foreground">Subjects</p>
+              <p className="text-2xl font-bold text-blue-800">{subjects.length}</p>
+              <p className="text-xs text-blue-600 font-medium">Subjects</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
           <CardContent className="pt-4 flex items-center gap-3">
-            <Users className="h-7 w-7 text-blue-500 flex-shrink-0" />
+            <div className="p-2 rounded-xl bg-white/70"><Users className="h-6 w-6 text-green-600 flex-shrink-0" /></div>
             <div>
-              <p className="text-2xl font-bold">{totalStudents}</p>
-              <p className="text-xs text-muted-foreground">Students</p>
+              <p className="text-2xl font-bold text-green-800">{totalStudents}</p>
+              <p className="text-xs text-green-600 font-medium">Students</p>
             </div>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0">
           <CardContent className="pt-4 flex items-center gap-3">
-            <ClipboardList className="h-7 w-7 text-orange-500 flex-shrink-0" />
+            <div className="p-2 rounded-xl bg-white/70"><ClipboardList className="h-6 w-6 text-amber-600 flex-shrink-0" /></div>
             <div>
-              <p className="text-2xl font-bold">{totalAssignments}</p>
-              <p className="text-xs text-muted-foreground">Assignments</p>
+              <p className="text-2xl font-bold text-amber-800">{totalAssignments}</p>
+              <p className="text-xs text-amber-600 font-medium">Assignments</p>
             </div>
           </CardContent>
         </Card>

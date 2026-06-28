@@ -6,10 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAuth } from '@/lib/auth-context';
 import { mutate as mutation, query } from '@/lib/graphql';
 import {
-  Activity, AlertTriangle, CheckCircle, ChevronLeft, ChevronRight,
-  Database, Laptop, Loader2, Monitor,
-  Search, Shield, ShieldCheck,
-  Smartphone, UserX,
+  Activity, ChevronLeft, ChevronRight,
+  Database, Laptop, Loader2, Lock, Monitor,
+  Search, Shield, Smartphone, Unlock, UserX,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -40,6 +39,24 @@ const REVOKE_ALL = `
   }
 `;
 
+const BLOCK_USER = `
+  mutation BlockUser($userId: ID!) {
+    deactivateUser(userId: $userId) { success message }
+  }
+`;
+
+const UNBLOCK_USER = `
+  mutation UnblockUser($userId: ID!) {
+    activateUser(userId: $userId) { success message }
+  }
+`;
+
+const ALL_USERS_QUERY = `
+  query SecurityUsers {
+    users(limit: 5000) { id username email role first_name last_name is_active }
+  }
+`;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -52,6 +69,10 @@ interface AuditLog {
   action: string; targetTable: string; ipAddress: string | null; performedAt: string;
 }
 interface Overview { activeSessions: number; totalActiveUsers: number; auditLogTotal: number; }
+interface SysUser {
+  id: string; username: string; email: string; role: string;
+  first_name: string; last_name: string; is_active: boolean;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -116,33 +137,44 @@ function Paginator({ page, total, onChange }: { page: number; total: number; onC
 // ---------------------------------------------------------------------------
 export default function AdminSecurityPage() {
   const { token } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sessions' | 'users' | 'audit'>('overview');
 
   // Data
   const [overview, setOverview]   = useState<Overview>({ activeSessions: 0, totalActiveUsers: 0, auditLogTotal: 0 });
   const [sessions, setSessions]   = useState<Session[]>([]);
   const [logs, setLogs]           = useState<AuditLog[]>([]);
+  const [sysUsers, setSysUsers]   = useState<SysUser[]>([]);
   const [loading, setLoading]     = useState(true);
 
   // Filters
   const [sessionSearch, setSessionSearch] = useState('');
   const [logSearch,     setLogSearch]     = useState('');
   const [logAction,     setLogAction]     = useState('all');
+  const [userSearch,    setUserSearch]    = useState('');
+  const [userRole,      setUserRole]      = useState('all');
+  const [userStatus,    setUserStatus]    = useState('all');
 
   // Pagination
-  const [sesPage, setSesPage] = useState(1);
-  const [logPage, setLogPage] = useState(1);
-
+  const [sesPage,      setSesPage]      = useState(1);
+  const [logPage,      setLogPage]      = useState(1);
+  const [userPage,     setUserPage]     = useState(1);
+  const [activityPage, setActivityPage] = useState(1);
 
   // Actions
-  const [revoking, setRevoking] = useState<string | null>(null);
+  const [revoking,  setRevoking]  = useState<string | null>(null);
+  const [blocking,  setBlocking]  = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!token) return;
-    query<any>(SECURITY_QUERY, {}, token).then(r => {
+    Promise.all([
+      query<any>(SECURITY_QUERY, {}, token),
+      query<any>(ALL_USERS_QUERY, {}, token),
+    ]).then(([r, ur]) => {
       setOverview(r.securityOverview ?? { activeSessions: 0, totalActiveUsers: 0, auditLogTotal: 0 });
       setSessions(r.activeSessions ?? []);
       setLogs(r.auditLogs ?? []);
+      setSysUsers(ur.users ?? []);
     }).catch(() => {}).finally(() => setLoading(false));
   }, [token]);
 
@@ -180,9 +212,47 @@ export default function AdminSecurityPage() {
     setRevoking(null);
   }
 
+  async function toggleBlock(u: SysUser) {
+    if (!token || blocking) return;
+    setBlocking(u.id);
+    const mut = u.is_active ? BLOCK_USER : UNBLOCK_USER;
+    const key  = u.is_active ? 'deactivateUser' : 'activateUser';
+    const res  = await mutation<any>(mut, { userId: u.id }, token).catch(() => null);
+    if (res?.[key]?.success) {
+      setSysUsers(prev => prev.map(x => x.id === u.id ? { ...x, is_active: !u.is_active } : x));
+      setActionMsg({ ok: true, text: `${u.username} has been ${u.is_active ? 'blocked' : 'unblocked'}.` });
+    } else {
+      setActionMsg({ ok: false, text: res?.[key]?.message ?? 'Action failed.' });
+    }
+    setBlocking(null);
+    setTimeout(() => setActionMsg(null), 3000);
+  }
+
+  // Filtered users
+  const filteredUsers = sysUsers.filter(u => {
+    const q = userSearch.toLowerCase();
+    const matchQ = !q || u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) ||
+      `${u.first_name} ${u.last_name}`.toLowerCase().includes(q);
+    const matchR = userRole === 'all' || u.role === userRole;
+    const matchS = userStatus === 'all' || (userStatus === 'active' ? u.is_active : !u.is_active);
+    return matchQ && matchR && matchS;
+  });
+  const pagedUsers = filteredUsers.slice((userPage - 1) * PAGE, userPage * PAGE);
+
+  const ROLE_LABELS: Record<string, string> = {
+    admin: 'Admin', it_technician: 'IT Tech', staff: 'Teacher', student: 'Student',
+  };
+  const ROLE_COLORS: Record<string, string> = {
+    admin: 'bg-purple-100 text-purple-700',
+    it_technician: 'bg-blue-100 text-blue-700',
+    staff: 'bg-cyan-100 text-cyan-700',
+    student: 'bg-green-100 text-green-700',
+  };
+
   const TABS = [
     { key: 'overview', label: 'Overview',        icon: Shield },
     { key: 'sessions', label: 'Active Sessions', icon: Monitor },
+    { key: 'users',    label: 'User Access',     icon: Lock },
     { key: 'audit',    label: 'Audit Log',       icon: Activity },
   ] as const;
 
@@ -212,18 +282,18 @@ export default function AdminSecurityPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Active Sessions',  value: overview.activeSessions,  icon: Monitor,   color: 'text-blue-600',  bg: 'bg-blue-50' },
-          { label: 'Active Users',     value: overview.totalActiveUsers, icon: Shield,    color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Audit Log Entries',value: overview.auditLogTotal,    icon: Database,  color: 'text-purple-600',bg: 'bg-purple-50' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <Card key={label}>
+          { label: 'Active Sessions',  value: overview.activeSessions,  icon: Monitor,   iconColor: 'text-blue-600',   cardBg: 'bg-gradient-to-br from-blue-50 to-indigo-100',   iconBg: 'bg-white/70', textColor: 'text-blue-800',   subColor: 'text-blue-600' },
+          { label: 'Active Users',     value: overview.totalActiveUsers, icon: Shield,    iconColor: 'text-green-600',  cardBg: 'bg-gradient-to-br from-green-50 to-emerald-100', iconBg: 'bg-white/70', textColor: 'text-green-800',  subColor: 'text-green-600' },
+          { label: 'Audit Log Entries',value: overview.auditLogTotal,    icon: Database,  iconColor: 'text-purple-600', cardBg: 'bg-gradient-to-br from-purple-50 to-violet-100', iconBg: 'bg-white/70', textColor: 'text-purple-800', subColor: 'text-purple-600' },
+        ].map(({ label, value, icon: Icon, iconColor, cardBg, iconBg, textColor, subColor }) => (
+          <Card key={label} className={`${cardBg} border-0 shadow-sm`}>
             <CardContent className="pt-5 pb-4 flex items-center gap-3">
-              <div className={`p-2.5 rounded-xl ${bg}`}>
-                <Icon className={`h-5 w-5 ${color}`} />
+              <div className={`p-2.5 rounded-xl ${iconBg} shadow-sm`}>
+                <Icon className={`h-5 w-5 ${iconColor}`} />
               </div>
               <div>
-                <p className="text-2xl font-bold">{loading ? '…' : value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className={`text-2xl font-bold ${textColor}`}>{loading ? '…' : value}</p>
+                <p className={`text-xs font-medium ${subColor}`}>{label}</p>
               </div>
             </CardContent>
           </Card>
@@ -244,14 +314,22 @@ export default function AdminSecurityPage() {
         ))}
       </div>
 
+      {/* Action feedback */}
+      {actionMsg && (
+        <div className={`px-4 py-2.5 rounded-lg text-sm font-medium ${actionMsg.ok ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+          {actionMsg.text}
+        </div>
+      )}
+
       {/* ── Overview ── */}
       {activeTab === 'overview' && (
         <div className="space-y-4">
           {/* Quick-action cards */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[
-              { icon: Monitor,  bg: 'bg-blue-50',   color: 'text-blue-600',   title: 'Manage Sessions', sub: `${overview.activeSessions} active`,  tab: 'sessions' as const },
-              { icon: Activity, bg: 'bg-purple-50', color: 'text-purple-600', title: 'Audit Log',       sub: `${overview.auditLogTotal} entries`,   tab: 'audit'    as const },
+              { icon: Monitor,  bg: 'bg-blue-50',   color: 'text-blue-600',   title: 'Manage Sessions', sub: `${overview.activeSessions} active`,      tab: 'sessions' as const },
+              { icon: Lock,     bg: 'bg-red-50',    color: 'text-red-600',    title: 'User Access',     sub: `Block / unblock accounts`,               tab: 'users'    as const },
+              { icon: Activity, bg: 'bg-purple-50', color: 'text-purple-600', title: 'Audit Log',       sub: `${overview.auditLogTotal} entries`,       tab: 'audit'    as const },
             ].map(({ icon: Icon, bg, color, title, sub, tab }) => (
               <button key={tab} onClick={() => setActiveTab(tab)}
                 className="flex items-center gap-4 p-5 rounded-xl border bg-card hover:bg-muted/30 text-left transition-colors group">
@@ -269,10 +347,35 @@ export default function AdminSecurityPage() {
           {/* Recent audit entries */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Activity className="h-4 w-4" />Recent Activity
-              </CardTitle>
-              <CardDescription>Last {Math.min(8, logs.length)} audit log entries</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Activity className="h-4 w-4" />Recent Activity
+                  </CardTitle>
+                  <CardDescription>
+                    {logs.length === 0
+                      ? 'No audit log entries yet'
+                      : `${Math.min((activityPage - 1) * 8 + 1, logs.length)}–${Math.min(activityPage * 8, logs.length)} of ${logs.length} entries`}
+                  </CardDescription>
+                </div>
+                {logs.length > 8 && (
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-7 w-7"
+                      disabled={activityPage === 1}
+                      onClick={() => setActivityPage(p => p - 1)}>
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground px-1">
+                      {activityPage}/{Math.ceil(logs.length / 8)}
+                    </span>
+                    <Button variant="outline" size="icon" className="h-7 w-7"
+                      disabled={activityPage >= Math.ceil(logs.length / 8)}
+                      onClick={() => setActivityPage(p => p + 1)}>
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="p-0">
               {loading ? (
@@ -281,7 +384,7 @@ export default function AdminSecurityPage() {
                 <p className="text-sm text-muted-foreground text-center py-8">No audit log entries yet.</p>
               ) : (
                 <div className="divide-y">
-                  {logs.slice(0, 8).map(log => (
+                  {logs.slice((activityPage - 1) * 8, activityPage * 8).map(log => (
                     <div key={log.id} className="flex items-center gap-4 px-4 py-3">
                       <div className={`p-1.5 rounded-lg text-xs font-bold ${actionColor(log.action)}`}>
                         <Activity className="h-3.5 w-3.5" />
@@ -353,7 +456,7 @@ export default function AdminSecurityPage() {
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Role</th>
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Started</th>
                           <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Expires</th>
-                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Action</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y">
@@ -382,14 +485,29 @@ export default function AdminSecurityPage() {
                             <td className="px-4 py-3 text-xs text-muted-foreground">{relativeTime(s.issuedAt)}</td>
                             <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDT(s.expiresAt)}</td>
                             <td className="px-4 py-3 text-right">
-                              <Button size="sm" variant="ghost"
-                                className="text-destructive hover:text-destructive hover:bg-red-50 h-7"
-                                onClick={() => revokeSession(s.id)}
-                                disabled={revoking === s.id}>
-                                {revoking === s.id
-                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                  : <UserX className="h-3.5 w-3.5" />}
-                              </Button>
+                              <div className="flex items-center justify-end gap-1">
+                                <Button size="sm" variant="ghost"
+                                  className="text-destructive hover:text-destructive hover:bg-red-50 h-7 gap-1 text-xs"
+                                  onClick={() => revokeSession(s.id)}
+                                  disabled={revoking === s.id || blocking === s.userId}
+                                  title="Revoke session">
+                                  {revoking === s.id
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <><UserX className="h-3.5 w-3.5" />Revoke</>}
+                                </Button>
+                                <Button size="sm" variant="ghost"
+                                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 h-7 gap-1 text-xs"
+                                  onClick={() => {
+                                    const u = sysUsers.find(x => x.id === s.userId);
+                                    if (u) toggleBlock(u);
+                                  }}
+                                  disabled={blocking === s.userId || revoking === s.id}
+                                  title="Block user account">
+                                  {blocking === s.userId
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <><Lock className="h-3.5 w-3.5" />Block</>}
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -397,6 +515,111 @@ export default function AdminSecurityPage() {
                     </table>
                   </div>
                   <Paginator page={sesPage} total={filteredSessions.length} onChange={setSesPage} />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── User Access ── */}
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex-1">
+                  <CardTitle className="text-base">User Access Control ({filteredUsers.length})</CardTitle>
+                  <CardDescription>Block or unblock user accounts</CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input value={userSearch} onChange={e => { setUserSearch(e.target.value); setUserPage(1); }}
+                      placeholder="Search users…"
+                      className="pl-8 pr-3 py-1.5 border rounded-lg text-sm bg-background w-44 focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <Select value={userRole} onValueChange={v => { setUserRole(v); setUserPage(1); }}>
+                    <SelectTrigger className="w-32 h-9 text-sm"><SelectValue placeholder="All roles" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All roles</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="it_technician">IT Tech</SelectItem>
+                      <SelectItem value="staff">Teacher</SelectItem>
+                      <SelectItem value="student">Student</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={userStatus} onValueChange={v => { setUserStatus(v); setUserPage(1); }}>
+                    <SelectTrigger className="w-28 h-9 text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="blocked">Blocked</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-4 space-y-2">{[1,2,3,4].map(i => <div key={i} className="h-12 bg-muted rounded animate-pulse" />)}</div>
+              ) : filteredUsers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                  <Lock className="h-10 w-10 mb-3 opacity-30" />
+                  <p className="text-sm">No users found</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">User</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Role</th>
+                          <th className="text-left px-4 py-2.5 text-xs font-semibold text-muted-foreground">Status</th>
+                          <th className="text-right px-4 py-2.5 text-xs font-semibold text-muted-foreground">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {pagedUsers.map(u => (
+                          <tr key={u.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <p className="font-medium">{u.first_name} {u.last_name}</p>
+                              <p className="text-xs text-muted-foreground">{u.email}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role] ?? 'bg-gray-100 text-gray-700'}`}>
+                                {ROLE_LABELS[u.role] ?? u.role}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-0.5 rounded-full font-medium ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
+                                {u.is_active ? 'Active' : 'Blocked'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                size="sm"
+                                variant={u.is_active ? 'ghost' : 'outline'}
+                                className={u.is_active ? 'text-red-600 hover:text-red-700 hover:bg-red-50 h-8 gap-1.5' : 'text-green-700 hover:text-green-800 hover:bg-green-50 h-8 gap-1.5'}
+                                onClick={() => toggleBlock(u)}
+                                disabled={blocking === u.id}
+                              >
+                                {blocking === u.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : u.is_active
+                                    ? <><Lock className="h-3.5 w-3.5" />Block</>
+                                    : <><Unlock className="h-3.5 w-3.5" />Unblock</>
+                                }
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <Paginator page={userPage} total={filteredUsers.length} onChange={setUserPage} />
                 </>
               )}
             </CardContent>

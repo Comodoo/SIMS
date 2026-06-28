@@ -1,190 +1,108 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
-import { BookOpen, FileText, Fingerprint, GraduationCap, Shield, Users } from 'lucide-react';
+import {
+  BookOpen, GraduationCap, Settings, Shield, Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-const ADMIN_DASHBOARD_QUERY = `
+const DASH_Q = `
   query AdminDashboard {
-    students(limit: 1000) {
-      id
-    }
-    staffMembers(limit: 100) {
-      id
-    }
-    courses(limit: 100) {
-      id
-    }
-    attendance(limit: 100) {
-      id
-      status
-      timestamp
-    }
+    students(limit: 5000) { id status }
+    staffMembers(limit: 1000) { id }
+    courses(limit: 1000) { id status }
+    users(limit: 5000) { id role is_active }
   }
 `;
 
 export default function AdminDashboard() {
   const { user, token } = useAuth();
   const [stats, setStats] = useState({
-    totalStudents: 0,
-    totalStaff: 0,
-    totalCourses: 0,
-    attendanceRate: 0,
+    totalStudents: 0, activeStudents: 0,
+    totalTeachers: 0, totalITTechs: 0,
+    totalUsers: 0, activeCourses: 0,
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user || !token) return;
-
-    const fetchDashboardData = async () => {
-      try {
-        const response = await query('adminDashboard', ADMIN_DASHBOARD_QUERY, {}, token);
-        
-        const students = response.students || [];
-        const staff = response.staffMembers || [];
-        const courses = response.courses || [];
-        const attendance = response.attendance || [];
-
-        // Calculate attendance rate for today
-        const today = new Date().toISOString().split('T')[0];
-        const todayAttendance = attendance.filter((a: any) => 
-          a.timestamp && a.timestamp.startsWith(today)
-        );
-        const clockedInCount = todayAttendance.filter((a: any) => a.status === 'in').length;
-        const attendanceRate = staff.length > 0 ? Math.round((clockedInCount / staff.length) * 100) : 0;
-
+    query<any>(DASH_Q, {}, token)
+      .then(r => {
+        const users: any[] = r.users ?? [];
+        const students: any[] = r.students ?? [];
         setStats({
-          totalStudents: students.length,
-          totalStaff: staff.length,
-          totalCourses: courses.length,
-          attendanceRate,
+          totalStudents:  students.length,
+          activeStudents: students.filter((s: any) => s.status === 'active').length,
+          totalTeachers:  users.filter((u: any) => u.role === 'staff').length,
+          totalITTechs:   users.filter((u: any) => u.role === 'it_technician').length,
+          totalUsers:     users.length,
+          activeCourses:  (r.courses ?? []).filter((c: any) => c.status === 'active').length,
         });
-      } catch (error) {
-        console.error('Failed to fetch dashboard data:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [user, token]);
 
-  if (loading) {
-    return <div>Loading dashboard...</div>;
-  }
+  const statCards = [
+    { label: 'Total Students',    value: stats.totalStudents,  icon: GraduationCap, color: 'text-green-600',  bg: 'bg-gradient-to-br from-green-50 to-emerald-100' },
+    { label: 'Active Students',   value: stats.activeStudents, icon: GraduationCap, color: 'text-emerald-600', bg: 'bg-gradient-to-br from-emerald-50 to-green-100' },
+    { label: 'Teachers',          value: stats.totalTeachers,  icon: Users,         color: 'text-blue-600',   bg: 'bg-gradient-to-br from-blue-50 to-indigo-100' },
+    { label: 'IT Technicians',    value: stats.totalITTechs,   icon: Settings,      color: 'text-purple-600', bg: 'bg-gradient-to-br from-purple-50 to-violet-100' },
+    { label: 'Total Users',       value: stats.totalUsers,     icon: Shield,        color: 'text-indigo-600', bg: 'bg-gradient-to-br from-indigo-50 to-purple-100' },
+    { label: 'Active Subjects',   value: stats.activeCourses,  icon: BookOpen,      color: 'text-amber-600',  bg: 'bg-gradient-to-br from-amber-50 to-yellow-100' },
+  ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <GraduationCap className="h-4 w-4 text-primary-foreground" />
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+        <p className="text-muted-foreground">System-wide overview. Manage IT Technicians below.</p>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
+          <Card key={label} className={`${bg} border-0`}>
+            <CardContent className="pt-5 pb-4 flex items-center gap-4">
+              <div className="p-2.5 rounded-xl bg-white/60">
+                <Icon className={`h-6 w-6 ${color}`} />
+              </div>
+              <div>
+                <p className="text-2xl font-bold text-gray-800">{loading ? '…' : value}</p>
+                <p className="text-xs text-gray-600 font-medium">{label}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* IT Technicians management prompt */}
+      <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50">
+        <CardContent className="pt-6 pb-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                <Settings className="h-6 w-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-lg">IT Technician Management</p>
+                <p className="text-sm text-muted-foreground">
+                  Add, view, and manage IT Technician accounts. They handle all system administration.
+                </p>
+              </div>
             </div>
-            <span className="text-lg font-bold">SIMS</span>
-          </Link>
-        </nav>
-      </header>
-
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Admin Dashboard</h1>
-          <p className="text-muted-foreground">Complete system management and oversight.</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalStudents}</div>
-              <p className="text-xs text-muted-foreground">Active enrollment</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Staff</CardTitle>
-              <Shield className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalStaff}</div>
-              <p className="text-xs text-muted-foreground">Teaching & admin</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Courses</CardTitle>
-              <BookOpen className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalCourses}</div>
-              <p className="text-xs text-muted-foreground">Active courses</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Today's Attendance</CardTitle>
-              <Fingerprint className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.attendanceRate}%</div>
-              <p className="text-xs text-muted-foreground">Staff present</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-            <Link href="/admin/users">
-              <Users className="h-6 w-6" />
-              <span>Manage Users</span>
+            <Link href="/admin/it-technicians">
+              <Button className="bg-purple-600 hover:bg-purple-700 text-white">
+                <Settings className="h-4 w-4 mr-2" />Manage IT Technicians
+              </Button>
             </Link>
-          </Button>
-          <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-            <Link href="/admin/courses">
-              <BookOpen className="h-6 w-6" />
-              <span>Manage Courses</span>
-            </Link>
-          </Button>
-          <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-            <Link href="/admin/attendance">
-              <Fingerprint className="h-6 w-6" />
-              <span>Attendance</span>
-            </Link>
-          </Button>
-          <Button variant="outline" className="h-20 flex flex-col gap-2" asChild>
-            <Link href="/admin/reports">
-              <FileText className="h-6 w-6" />
-              <span>Reports</span>
-            </Link>
-          </Button>
-        </div>
-
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              Recent activity data will be available once the system is in use.
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -140,7 +140,7 @@ export default function StaffDashboard() {
     <div className="space-y-6">
       {/* Welcome */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Staff Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Teacher Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back, {user?.first_name}! Here&apos;s your teaching overview.
         </p>
@@ -148,58 +148,71 @@ export default function StaffDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">My Subjects</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loading ? '…' : subjects.length}</div>
-            <p className="text-xs text-muted-foreground">
-              {primarySubjects.length} primary
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-            <Fingerprint className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '…' : checkedInToday ? (lateToday ? 'Late' : 'In') : 'Out'}
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <BookOpen className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-800">{loading ? '…' : subjects.length}</div>
+                <p className="text-xs text-blue-600 font-medium">{primarySubjects.length} primary</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              Today · {attendanceRecords.length} total records
-            </p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Grading</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loading ? '…' : myGradedCount}</div>
-            <p className="text-xs text-muted-foreground">
-              Result cards saved ·{' '}
-              <Link href="/staff/grading" className="text-primary hover:underline">Grade students</Link>
-            </p>
+        <Card className={`border-0 shadow-sm ${
+          checkedInToday && !lateToday ? 'bg-gradient-to-br from-green-50 to-emerald-100'
+          : lateToday ? 'bg-gradient-to-br from-amber-50 to-yellow-100'
+          : 'bg-gradient-to-br from-red-50 to-rose-100'
+        }`}>
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <Fingerprint className={`h-5 w-5 ${checkedInToday && !lateToday ? 'text-green-600' : lateToday ? 'text-amber-600' : 'text-red-500'}`} />
+              </div>
+              <div>
+                <div className={`text-2xl font-bold ${checkedInToday && !lateToday ? 'text-green-800' : lateToday ? 'text-amber-800' : 'text-red-700'}`}>
+                  {loading ? '…' : checkedInToday ? (lateToday ? 'Late' : 'In') : 'Out'}
+                </div>
+                <p className={`text-xs font-medium ${checkedInToday && !lateToday ? 'text-green-600' : lateToday ? 'text-amber-600' : 'text-red-500'}`}>
+                  Today · {attendanceRecords.length} records
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Timetable</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">—</div>
-            <p className="text-xs text-muted-foreground">
-              <Link href="/staff/timetable" className="text-primary hover:underline">View schedule</Link>
-            </p>
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <Award className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-amber-800">{loading ? '…' : myGradedCount}</div>
+                <p className="text-xs text-amber-600 font-medium">
+                  <Link href="/staff/grading" className="hover:underline">Result cards saved</Link>
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <Calendar className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-800">{loading ? '…' : myStudentCount}</div>
+                <p className="text-xs text-purple-600 font-medium">
+                  <Link href="/staff/timetable" className="hover:underline">Total students</Link>
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>

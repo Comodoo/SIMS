@@ -225,7 +225,10 @@ export default function AdminSubjectsPage() {
   // Enroll student dialog
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [enrollSubject, setEnrollSubject] = useState<Subject | null>(null);
-  const [enrollStudentId, setEnrollStudentId] = useState('');
+  const [enrollGrade, setEnrollGrade] = useState('');
+  const [enrollSection, setEnrollSection] = useState('');
+  const [enrollSearch, setEnrollSearch] = useState('');
+  const [enrollSelectedIds, setEnrollSelectedIds] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
 
   async function load() {
@@ -391,30 +394,35 @@ export default function AdminSubjectsPage() {
 
   function openEnroll(subject: Subject) {
     setEnrollSubject(subject);
-    setEnrollStudentId('');
+    setEnrollSelectedIds(new Set());
+    setEnrollGrade('');
+    setEnrollSection('');
+    setEnrollSearch('');
+    setError('');
     setEnrollOpen(true);
   }
 
-  async function handleEnrollStudent() {
-    if (!enrollSubject || !enrollStudentId) return;
-    setSaving(true);
+  async function handleEnrollStudents() {
+    if (!enrollSubject || enrollSelectedIds.size === 0) return;
+    setSaving(true); setError('');
     try {
-      const res: any = await mutate(ENROLL_STUDENT_MUTATION, {
-        input: {
-          studentId: enrollStudentId,
-          courseId: enrollSubject.id,
-          semester: enrollSubject.semester || '',
-          academicYear: enrollSubject.academic_year || '',
-        },
-      }, token ?? undefined);
-      if (res.enrollStudent?.success === false) {
-        setError(res.enrollStudent.message);
-        return;
+      for (const studentId of enrollSelectedIds) {
+        const res: any = await mutate(ENROLL_STUDENT_MUTATION, {
+          input: {
+            studentId,
+            courseId: enrollSubject.id,
+            semester: enrollSubject.semester || '',
+            academicYear: enrollSubject.academic_year || '',
+          },
+        }, token ?? undefined);
+        if (res.enrollStudent?.success === false) {
+          setError(res.enrollStudent.message); return;
+        }
       }
       setEnrollOpen(false);
       await load();
     } catch (e: any) {
-      setError(e?.message ?? 'Failed to enroll student.');
+      setError(e?.message ?? 'Failed to enroll students.');
     } finally { setSaving(false); }
   }
 
@@ -436,22 +444,22 @@ export default function AdminSubjectsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{subjects.length}</p>
-            <p className="text-sm text-muted-foreground">Total Subjects</p>
+            <p className="text-2xl font-bold text-blue-800">{subjects.length}</p>
+            <p className="text-sm text-blue-600 font-medium">Total Subjects</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{subjects.filter(s => s.status === 'active').length}</p>
-            <p className="text-sm text-muted-foreground">Active</p>
+            <p className="text-2xl font-bold text-green-800">{subjects.filter(s => s.status === 'active').length}</p>
+            <p className="text-sm text-green-600 font-medium">Active</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{new Set(assignments.map(a => a.teacher.id)).size}</p>
-            <p className="text-sm text-muted-foreground">Teachers Assigned</p>
+            <p className="text-2xl font-bold text-purple-800">{new Set(assignments.map(a => a.teacher.id)).size}</p>
+            <p className="text-sm text-purple-600 font-medium">Teachers Assigned</p>
           </CardContent>
         </Card>
       </div>
@@ -818,10 +826,10 @@ export default function AdminSubjectsPage() {
       {/* ----------------------------------------------------------------- */}
       {/* Enroll student dialog                                              */}
       {/* ----------------------------------------------------------------- */}
-      <Dialog open={enrollOpen} onOpenChange={o => { setEnrollOpen(o); if (!o) { setEnrollSubject(null); setEnrollStudentId(''); setError(''); } }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Enroll Student</DialogTitle>
+      <Dialog open={enrollOpen} onOpenChange={o => { setEnrollOpen(o); if (!o) { setEnrollSubject(null); setEnrollSelectedIds(new Set()); setError(''); } }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Enroll Students</DialogTitle>
             {enrollSubject && (
               <p className="text-sm text-muted-foreground">
                 Subject: <span className="font-medium">{enrollSubject.name}</span>
@@ -829,7 +837,8 @@ export default function AdminSubjectsPage() {
               </p>
             )}
           </DialogHeader>
-          <div className="space-y-4 pt-2">
+
+          <div className="overflow-y-auto flex-1 space-y-4 pt-2 pr-1">
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             {/* Currently enrolled */}
@@ -838,9 +847,9 @@ export default function AdminSubjectsPage() {
               return enrolled.length > 0 ? (
                 <div className="space-y-1">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    Currently Enrolled ({enrolled.length})
+                    Already Enrolled ({enrolled.length})
                   </p>
-                  <div className="max-h-32 overflow-y-auto rounded-md border divide-y">
+                  <div className="max-h-28 overflow-y-auto rounded-md border divide-y bg-muted/20">
                     {enrolled.map(e => (
                       <div key={e.id} className="flex items-center justify-between px-3 py-2 text-sm">
                         <span>{e.student.first_name} {e.student.last_name}</span>
@@ -852,45 +861,152 @@ export default function AdminSubjectsPage() {
               ) : null;
             })()}
 
-            {/* Add student */}
-            <div className="space-y-1">
-              <Label>Add Student *</Label>
-              <Select
-                value={enrollStudentId}
-                onValueChange={setEnrollStudentId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a student to enroll" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(() => {
-                    const alreadyEnrolled = enrollSubject
-                      ? new Set(getEnrolledStudents(enrollSubject.id).map(e => e.student.id))
-                      : new Set<string>();
-                    const available = students.filter(s => !alreadyEnrolled.has(s.id));
-                    return available.length === 0 ? (
-                      <SelectItem value="__none__" disabled>All students already enrolled</SelectItem>
-                    ) : available.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.first_name} {s.last_name}
-                        <span className="text-muted-foreground ml-2 text-xs">— {s.student_number}</span>
-                      </SelectItem>
-                    ));
-                  })()}
-                </SelectContent>
-              </Select>
+            {/* Filters */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Grade Level</Label>
+                <Select value={enrollGrade || '__all__'} onValueChange={v => {
+                  const val = v === '__all__' ? '' : v;
+                  setEnrollGrade(val);
+                  setEnrollSection('');
+                  setEnrollSelectedIds(new Set());
+                }}>
+                  <SelectTrigger><SelectValue placeholder="All grades" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All grades</SelectItem>
+                    {classGroups.filter(g => !g.parentId).map(g => (
+                      <SelectItem key={g.id} value={g.name}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Section</Label>
+                {(() => {
+                  const parent = classGroups.find(g => g.name === enrollGrade && !g.parentId);
+                  const subs = parent ? classGroups.filter(g => g.parentId === parent.id) : [];
+                  return (
+                    <Select
+                      value={enrollSection || '__all__'}
+                      onValueChange={v => { setEnrollSection(v === '__all__' ? '' : v); setEnrollSelectedIds(new Set()); }}
+                      disabled={!enrollGrade || subs.length === 0}
+                    >
+                      <SelectTrigger><SelectValue placeholder={!enrollGrade ? 'Select grade first' : subs.length === 0 ? 'No sections' : 'All sections'} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">All sections</SelectItem>
+                        {subs.map(s => (
+                          <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
+              </div>
             </div>
 
-            <div className="flex gap-2 pt-1">
-              <Button
-                className="flex-1"
-                onClick={handleEnrollStudent}
-                disabled={saving || !enrollStudentId || enrollStudentId === '__none__'}
-              >
-                {saving ? 'Enrolling…' : 'Enroll Student'}
-              </Button>
-              <Button variant="outline" onClick={() => setEnrollOpen(false)}>Cancel</Button>
+            {/* Search */}
+            <div className="space-y-1">
+              <Label className="text-xs">Search student</Label>
+              <Input
+                placeholder="Name or student number…"
+                value={enrollSearch}
+                onChange={e => setEnrollSearch(e.target.value)}
+              />
             </div>
+
+            {/* Student multi-select list */}
+            {(() => {
+              const alreadyEnrolled = enrollSubject
+                ? new Set(getEnrolledStudents(enrollSubject.id).map(e => e.student.id))
+                : new Set<string>();
+
+              const available = students.filter(s => {
+                if (alreadyEnrolled.has(s.id)) return false;
+                const gl = (s.grade_level ?? '').toLowerCase();
+                if (enrollSection) {
+                  if (!gl.includes(enrollSection.toLowerCase())) return false;
+                } else if (enrollGrade) {
+                  if (!gl.includes(enrollGrade.toLowerCase())) return false;
+                }
+                if (enrollSearch) {
+                  const q = enrollSearch.toLowerCase();
+                  if (!`${s.first_name} ${s.last_name} ${s.student_number}`.toLowerCase().includes(q)) return false;
+                }
+                return true;
+              });
+
+              const allSelected = available.length > 0 && available.every(s => enrollSelectedIds.has(s.id));
+
+              const toggleAll = () => {
+                if (allSelected) {
+                  const next = new Set(enrollSelectedIds);
+                  available.forEach(s => next.delete(s.id));
+                  setEnrollSelectedIds(next);
+                } else {
+                  const next = new Set(enrollSelectedIds);
+                  available.forEach(s => next.add(s.id));
+                  setEnrollSelectedIds(next);
+                }
+              };
+
+              return (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">
+                      Students <span className="text-muted-foreground font-normal">({available.length} available)</span>
+                    </Label>
+                    {available.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={toggleAll}
+                        className="text-xs text-primary hover:underline"
+                      >
+                        {allSelected ? 'Deselect all' : 'Select all'}
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-52 overflow-y-auto rounded-md border divide-y">
+                    {available.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">
+                        {alreadyEnrolled.size > 0 && students.length === alreadyEnrolled.size
+                          ? 'All students already enrolled'
+                          : 'No students match the selected filters'}
+                      </p>
+                    ) : available.map(s => (
+                      <label key={s.id} className="flex items-center gap-3 px-3 py-2.5 text-sm cursor-pointer hover:bg-muted/30 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="rounded"
+                          checked={enrollSelectedIds.has(s.id)}
+                          onChange={e => {
+                            const next = new Set(enrollSelectedIds);
+                            if (e.target.checked) next.add(s.id);
+                            else next.delete(s.id);
+                            setEnrollSelectedIds(next);
+                          }}
+                        />
+                        <span className="flex-1 font-medium">{s.first_name} {s.last_name}</span>
+                        <span className="text-xs text-muted-foreground font-mono">{s.student_number}</span>
+                        {s.grade_level && (
+                          <span className="text-xs px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{s.grade_level}</span>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex gap-2 pt-3 border-t flex-shrink-0">
+            <Button
+              className="flex-1"
+              onClick={handleEnrollStudents}
+              disabled={saving || enrollSelectedIds.size === 0}
+            >
+              {saving ? 'Enrolling…' : `Enroll ${enrollSelectedIds.size > 0 ? `${enrollSelectedIds.size} ` : ''}Student${enrollSelectedIds.size !== 1 ? 's' : ''}`}
+            </Button>
+            <Button variant="outline" onClick={() => setEnrollOpen(false)}>Cancel</Button>
           </div>
         </DialogContent>
       </Dialog>

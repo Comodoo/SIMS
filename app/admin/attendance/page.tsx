@@ -122,6 +122,12 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function fmtDate(d: string) { return new Date(d + 'T00:00:00').toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }); }
 function fmtTime(ts: string) { return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 function fmtDateTime(ts: string) { return new Date(ts).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function fmtLate(min: number) {
+  if (min < 60) return `${min}m late`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}m late` : `${h}h late`;
+}
 
 const STATUS_COLORS: Record<string, string> = {
   present: 'bg-green-100 text-green-800',
@@ -266,7 +272,7 @@ export default function AdminAttendancePage() {
         </div>
         <div className="flex gap-2">
           {([
-            { key: 'staff', label: 'Staff', icon: Users },
+            { key: 'staff', label: 'Teacher', icon: Users },
             { key: 'students', label: 'Students', icon: BookOpen },
             { key: 'settings', label: 'Settings', icon: Settings },
           ] as const).map(({ key, label, icon: Icon }) => (
@@ -339,7 +345,7 @@ export default function AdminAttendancePage() {
                             {!row.inRec ? (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Absent</span>
                             ) : isLate ? (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{lateMin}m late</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{fmtLate(lateMin)}</span>
                             ) : (
                               <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-medium">On time</span>
                             )}
@@ -349,7 +355,7 @@ export default function AdminAttendancePage() {
                       );
                     })}
                     {staffRows.length === 0 && (
-                      <tr><td colSpan={7} className="text-center text-sm text-muted-foreground py-10">No staff records found.</td></tr>
+                      <tr><td colSpan={7} className="text-center text-sm text-muted-foreground py-10">No teacher records found.</td></tr>
                     )}
                   </tbody>
                 </table>

@@ -38,8 +38,9 @@ const STUDENT_PROFILE_QUERY = `
 
 const SUBJECTS_DATA_QUERY = `
   query SubjectsData($studentId: ID!) {
+    classGroups { id name parentId }
     courses(limit: 200) {
-      id name course_code status semester academic_year credits department
+      id name course_code status semester academic_year credits department class_group
     }
     enrollments(studentId: $studentId, limit: 200) {
       id status semester academic_year course { id }
@@ -96,6 +97,7 @@ const ENROLL_MUTATION = `
 interface Course {
   id: string; name: string; course_code: string; status: string;
   semester: string; academic_year: string; credits: number; department: string;
+  class_group?: string | null;
 }
 
 interface Enrollment {
@@ -538,6 +540,7 @@ export default function StudentSubjectsPage() {
     id: string; student_number: string; grade_level: string; academic_year: string;
   } | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [classGroups, setClassGroups] = useState<{ id: string; name: string; parentId: string | null }[]>([]);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -563,6 +566,7 @@ export default function StudentSubjectsPage() {
   async function load(studentId: string) {
     const data = await query<any>(SUBJECTS_DATA_QUERY, { studentId }, token ?? undefined);
     setCourses(data.courses ?? []);
+    setClassGroups(data.classGroups ?? []);
     setEnrollments(data.enrollments ?? []);
     setAssignments(data.assignments ?? []);
     setSubmissions(data.submissions ?? []);
@@ -587,7 +591,39 @@ export default function StudentSubjectsPage() {
 
   const enrolledIds = useMemo(() => new Set(enrollments.map(e => e.course.id)), [enrollments]);
   const enrolledCourses = useMemo(() => courses.filter(c => enrolledIds.has(c.id)), [courses, enrolledIds]);
-  const availableCourses = useMemo(() => courses.filter(c => !enrolledIds.has(c.id) && c.status === 'active'), [courses, enrolledIds]);
+
+  // Determine student's top-level form name for filtering available subjects
+  const studentTopForm = useMemo(() => {
+    if (!studentProfile?.grade_level) return null;
+    const gl = studentProfile.grade_level;
+    // Check if grade_level is a sub-class (has a parentId in classGroups)
+    const match = classGroups.find(g => g.name === gl);
+    if (match && match.parentId) {
+      // It's a sub-class — find its parent name
+      const parent = classGroups.find(g => g.id === match.parentId);
+      return parent?.name ?? gl;
+    }
+    return gl; // Already a top-level group
+  }, [studentProfile, classGroups]);
+
+  // IDs of sub-groups under the student's top form
+  const studentFormGroupNames = useMemo(() => {
+    if (!studentTopForm) return null;
+    const topGroup = classGroups.find(g => g.name === studentTopForm);
+    if (!topGroup) return null;
+    const subGroups = classGroups.filter(g => g.parentId === topGroup.id).map(g => g.name);
+    return new Set([studentTopForm, ...subGroups]);
+  }, [studentTopForm, classGroups]);
+
+  const availableCourses = useMemo(() => courses.filter(c => {
+    if (enrolledIds.has(c.id) || c.status !== 'active') return false;
+    // If course has no class_group, it's available to all
+    if (!c.class_group) return true;
+    // If we can't determine student's form, show all
+    if (!studentFormGroupNames) return true;
+    // Only show courses whose class_group matches student's form family
+    return studentFormGroupNames.has(c.class_group);
+  }), [courses, enrolledIds, studentFormGroupNames]);
 
   // Map: assignmentId → Submission
   const submissionMap = useMemo(() =>
@@ -673,30 +709,30 @@ export default function StudentSubjectsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{enrolledCourses.length}</p>
-            <p className="text-sm text-muted-foreground">Enrolled</p>
+            <p className="text-2xl font-bold text-blue-800">{enrolledCourses.length}</p>
+            <p className="text-sm text-blue-600 font-medium">Enrolled</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{availableCourses.length}</p>
-            <p className="text-sm text-muted-foreground">Available</p>
+            <p className="text-2xl font-bold text-green-800">{availableCourses.length}</p>
+            <p className="text-sm text-green-600 font-medium">Available</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">{submissions.length}</p>
-            <p className="text-sm text-muted-foreground">Submitted</p>
+            <p className="text-2xl font-bold text-amber-800">{submissions.length}</p>
+            <p className="text-sm text-amber-600 font-medium">Submitted</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0">
           <CardContent className="pt-4">
-            <p className="text-2xl font-bold">
+            <p className="text-2xl font-bold text-purple-800">
               {enrolledCourses.reduce((s, c) => s + (c.credits || 0), 0)}
             </p>
-            <p className="text-sm text-muted-foreground">Total Credits</p>
+            <p className="text-sm text-purple-600 font-medium">Total Credits</p>
           </CardContent>
         </Card>
       </div>

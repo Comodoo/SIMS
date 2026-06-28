@@ -8,8 +8,8 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
 import {
-  Award, BookOpen, CheckCircle2, ChevronDown, ChevronRight,
-  ClipboardList, FileText, TrendingUp,
+  Award, BookOpen, CheckCircle2, ChevronDown, ChevronLeft,
+  ChevronRight, ClipboardList, FileText, TrendingUp,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -85,6 +85,34 @@ function ScoreBar({ value, max = 100 }: { value: number | null; max?: number }) 
   );
 }
 
+function Pager({ page, total, pageSize, onChange }: { page: number; total: number; pageSize: number; onChange(p: number): void }) {
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const from  = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to    = Math.min(page * pageSize, total);
+  if (pages <= 1) return null;
+  return (
+    <div className="flex items-center justify-between px-1 py-3">
+      <span className="text-xs text-muted-foreground">{from}–{to} of {total}</span>
+      <div className="flex items-center gap-1">
+        <button disabled={page <= 1} onClick={() => onChange(page - 1)}
+          className="p-1.5 rounded border bg-background disabled:opacity-30 hover:bg-muted">
+          <ChevronLeft className="h-3.5 w-3.5" />
+        </button>
+        {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
+          <button key={p} onClick={() => onChange(p)}
+            className={`w-7 h-7 rounded text-xs font-medium ${p === page ? 'bg-primary text-primary-foreground' : 'border bg-background hover:bg-muted'}`}>
+            {p}
+          </button>
+        ))}
+        <button disabled={page >= pages} onClick={() => onChange(page + 1)}
+          className="p-1.5 rounded border bg-background disabled:opacity-30 hover:bg-muted">
+          <ChevronRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TypeBadge({ type }: { type: string }) {
   const cls =
     type === 'exam' ? 'bg-red-100 text-red-700' :
@@ -106,6 +134,8 @@ export default function StudentResultsPage() {
   const [selectedSemester, setSelectedSemester] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
+  const [resultsPage, setResultsPage] = useState(1);
+  const RESULTS_PAGE_SIZE = 10;
 
   // Step 1: get student profile → student ID
   useEffect(() => {
@@ -163,7 +193,7 @@ export default function StudentResultsPage() {
         </div>
         <Select
           value={selectedSemester || 'all'}
-          onValueChange={v => setSelectedSemester(v === 'all' ? '' : v)}
+          onValueChange={v => { setSelectedSemester(v === 'all' ? '' : v); setResultsPage(1); }}
         >
           <SelectTrigger className="w-56">
             <SelectValue placeholder="All semesters" />
@@ -182,46 +212,46 @@ export default function StudentResultsPage() {
       {/* Summary stats */}
       {!loading && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
             <CardContent className="pt-5">
               <div className="flex items-center gap-3">
-                <BookOpen className="h-8 w-8 text-primary flex-shrink-0" />
+                <div className="p-2 rounded-xl bg-white/70"><BookOpen className="h-6 w-6 text-blue-600 flex-shrink-0" /></div>
                 <div>
-                  <p className="text-2xl font-bold">{results.length}</p>
-                  <p className="text-xs text-muted-foreground">Subjects</p>
+                  <p className="text-2xl font-bold text-blue-800">{results.length}</p>
+                  <p className="text-xs text-blue-600 font-medium">Subjects</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
             <CardContent className="pt-5">
               <div className="flex items-center gap-3">
-                <TrendingUp className="h-8 w-8 text-blue-500 flex-shrink-0" />
+                <div className="p-2 rounded-xl bg-white/70"><TrendingUp className="h-6 w-6 text-green-600 flex-shrink-0" /></div>
                 <div>
-                  <p className="text-2xl font-bold">{avg !== null ? avg.toFixed(1) : '—'}</p>
-                  <p className="text-xs text-muted-foreground">Avg Score</p>
+                  <p className="text-2xl font-bold text-green-800">{avg !== null ? avg.toFixed(1) : '—'}</p>
+                  <p className="text-xs text-green-600 font-medium">Avg Score</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0">
             <CardContent className="pt-5">
               <div className="flex items-center gap-3">
-                <Award className="h-8 w-8 text-green-500 flex-shrink-0" />
+                <div className="p-2 rounded-xl bg-white/70"><Award className="h-6 w-6 text-amber-600 flex-shrink-0" /></div>
                 <div>
-                  <p className="text-2xl font-bold">{passed}/{results.length}</p>
-                  <p className="text-xs text-muted-foreground">Passed</p>
+                  <p className="text-2xl font-bold text-amber-800">{passed}/{results.length}</p>
+                  <p className="text-xs text-amber-600 font-medium">Passed</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0">
             <CardContent className="pt-5">
               <div className="flex items-center gap-3">
-                <ClipboardList className="h-8 w-8 text-purple-500 flex-shrink-0" />
+                <div className="p-2 rounded-xl bg-white/70"><ClipboardList className="h-6 w-6 text-purple-600 flex-shrink-0" /></div>
                 <div>
-                  <p className="text-2xl font-bold">{graded}</p>
-                  <p className="text-xs text-muted-foreground">Graded Tasks</p>
+                  <p className="text-2xl font-bold text-purple-800">{graded}</p>
+                  <p className="text-xs text-purple-600 font-medium">Graded Tasks</p>
                 </div>
               </div>
             </CardContent>
@@ -244,7 +274,7 @@ export default function StudentResultsPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {results.map(r => {
+          {results.slice((resultsPage - 1) * RESULTS_PAGE_SIZE, resultsPage * RESULTS_PAGE_SIZE).map(r => {
             const isExpanded = expandedSubjectId === r.subject.id;
             const courseSubs = submissionsByCourse[r.subject.id] ?? [];
             const gc = GRADE_COLORS[r.gradeLetter ?? ''];
@@ -364,6 +394,12 @@ export default function StudentResultsPage() {
               </Card>
             );
           })}
+          <Pager
+            page={resultsPage}
+            total={results.length}
+            pageSize={RESULTS_PAGE_SIZE}
+            onChange={p => { setResultsPage(p); setExpandedSubjectId(null); }}
+          />
         </div>
       )}
     </div>

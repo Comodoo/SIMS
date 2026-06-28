@@ -235,15 +235,15 @@ export default function StudentAttendancePage() {
       {!loading && rates.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           {[
-            { label: 'Subjects',  value: rates.length,                        color: 'text-foreground' },
-            { label: 'Overall',   value: `${overallRate.toFixed(0)}%`,        color: overallRate >= 75 ? 'text-green-600' : 'text-red-600' },
-            { label: 'Warnings',  value: belowThresholdCount,                 color: belowThresholdCount > 0 ? 'text-red-600' : 'text-green-600' },
-            { label: 'Sessions',  value: totalSessions,                       color: 'text-foreground' },
-            { label: 'Present',   value: totalPresent,                        color: 'text-green-600' },
-          ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-lg border bg-card p-3 text-center">
+            { label: 'Subjects',  value: rates.length,                 bg: 'bg-gradient-to-br from-blue-50 to-indigo-100',   color: 'text-blue-800'  },
+            { label: 'Overall',   value: `${overallRate.toFixed(0)}%`, bg: overallRate >= 75 ? 'bg-gradient-to-br from-green-50 to-emerald-100' : 'bg-gradient-to-br from-red-50 to-rose-100', color: overallRate >= 75 ? 'text-green-800' : 'text-red-800' },
+            { label: 'Warnings',  value: belowThresholdCount,          bg: belowThresholdCount > 0 ? 'bg-gradient-to-br from-red-50 to-rose-100' : 'bg-gradient-to-br from-green-50 to-emerald-100', color: belowThresholdCount > 0 ? 'text-red-800' : 'text-green-800' },
+            { label: 'Sessions',  value: totalSessions,                bg: 'bg-gradient-to-br from-purple-50 to-violet-100',  color: 'text-purple-800' },
+            { label: 'Present',   value: totalPresent,                 bg: 'bg-gradient-to-br from-amber-50 to-yellow-100',   color: 'text-amber-800'  },
+          ].map(({ label, value, bg, color }) => (
+            <div key={label} className={`rounded-xl ${bg} border-0 p-3 text-center shadow-sm`}>
               <p className={`text-xl font-bold ${color}`}>{value}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+              <p className="text-xs text-gray-600 font-medium mt-0.5">{label}</p>
             </div>
           ))}
         </div>
@@ -300,11 +300,11 @@ export default function StudentAttendancePage() {
               <p className="text-sm text-muted-foreground text-center py-10">No subjects match your search.</p>
             ) : (
               <div className="divide-y">
-                {pagedRates.map(r => {
+                {pagedRates.map((r, idx) => {
                   const isSelected = selectedCourse === r.courseId;
                   return (
                     <button
-                      key={r.courseId}
+                      key={`${r.courseId}-${idx}`}
                       onClick={() => setSelectedCourse(prev => prev === r.courseId ? '' : r.courseId)}
                       className={`w-full text-left px-4 py-3 transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ${
                         isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''

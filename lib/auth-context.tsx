@@ -1,6 +1,13 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { mutate as gqlMutate } from '@/lib/graphql';
+
+const REVOKE_ALL_MUT = `
+  mutation LogoutRevoke($userId: ID) {
+    revokeAllSessions(userId: $userId) { success }
+  }
+`;
 
 export interface AuthUser {
   id: string;
@@ -78,9 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Capture before clearing so we can pass them to the backend
+    const savedToken = localStorage.getItem('authToken');
+    const savedUser  = localStorage.getItem('currentUser');
+
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
-    
+
     setState({
       user: null,
       token: null,
@@ -88,6 +99,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading: false,
       error: null,
     });
+
+    // Fire-and-forget: revoke the session on the backend
+    if (savedToken && savedUser) {
+      try {
+        const u = JSON.parse(savedUser);
+        gqlMutate(REVOKE_ALL_MUT, { userId: u.id }, savedToken).catch(() => {});
+      } catch { /* ignore parse errors */ }
+    }
   }, []);
 
   const updateUser = useCallback((user: AuthUser) => {

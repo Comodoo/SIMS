@@ -191,28 +191,28 @@ export default function AdminResultsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <BookOpen className="h-8 w-8 text-primary" />
-            <div><p className="text-2xl font-bold">{loading ? '—' : results.length}</p><p className="text-xs text-muted-foreground">Result cards</p></div>
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><BookOpen className="h-6 w-6 text-blue-600" /></div>
+            <div><p className="text-2xl font-bold text-blue-800">{loading ? '—' : results.length}</p><p className="text-xs text-blue-600 font-medium">Result cards</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <Users className="h-8 w-8 text-blue-500" />
-            <div><p className="text-2xl font-bold">{loading ? '—' : uniqueStudents}</p><p className="text-xs text-muted-foreground">Students</p></div>
+        <Card className="bg-gradient-to-br from-indigo-50 to-purple-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><Users className="h-6 w-6 text-indigo-600" /></div>
+            <div><p className="text-2xl font-bold text-indigo-800">{loading ? '—' : uniqueStudents}</p><p className="text-xs text-indigo-600 font-medium">Students</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <TrendingUp className="h-8 w-8 text-green-500" />
-            <div><p className="text-2xl font-bold">{loading ? '—' : avg !== null ? avg.toFixed(1) : '—'}</p><p className="text-xs text-muted-foreground">Average score</p></div>
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><TrendingUp className="h-6 w-6 text-green-600" /></div>
+            <div><p className="text-2xl font-bold text-green-800">{loading ? '—' : avg !== null ? avg.toFixed(1) : '—'}</p><p className="text-xs text-green-600 font-medium">Average score</p></div>
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="pt-6 flex items-center gap-3">
-            <Award className="h-8 w-8 text-amber-500" />
-            <div><p className="text-2xl font-bold">{loading ? '—' : results.length ? `${passed}/${results.length}` : '—'}</p><p className="text-xs text-muted-foreground">Passed</p></div>
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0">
+          <CardContent className="pt-5 pb-4 flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-white/70"><Award className="h-6 w-6 text-amber-600" /></div>
+            <div><p className="text-2xl font-bold text-amber-800">{loading ? '—' : results.length ? `${passed}/${results.length}` : '—'}</p><p className="text-xs text-amber-600 font-medium">Passed</p></div>
           </CardContent>
         </Card>
       </div>

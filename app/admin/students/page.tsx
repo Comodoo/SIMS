@@ -431,14 +431,14 @@ export default function AdminStudentsPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total',    value: students.length },
-          { label: 'Active',   value: students.filter(s => s.status === 'active').length },
-          { label: 'Class Groups', value: allGroups.length },
-          { label: 'Inactive', value: students.filter(s => !s.user.is_active).length },
-        ].map(({ label, value }) => (
-          <div key={label} className="rounded-xl border bg-card p-4">
-            <p className="text-2xl font-bold">{loading ? '—' : value}</p>
-            <p className="text-xs text-muted-foreground mt-1">{label}</p>
+          { label: 'Total',        value: students.length,                                        bg: 'bg-gradient-to-br from-blue-50 to-indigo-100',   color: 'text-blue-800',   sub: 'text-blue-600'  },
+          { label: 'Active',       value: students.filter(s => s.status === 'active').length,     bg: 'bg-gradient-to-br from-green-50 to-emerald-100', color: 'text-green-800',  sub: 'text-green-600' },
+          { label: 'Class Groups', value: allGroups.length,                                       bg: 'bg-gradient-to-br from-purple-50 to-violet-100', color: 'text-purple-800', sub: 'text-purple-600' },
+          { label: 'Inactive',     value: students.filter(s => !s.user.is_active).length,         bg: 'bg-gradient-to-br from-red-50 to-rose-100',      color: 'text-red-800',    sub: 'text-red-600'   },
+        ].map(({ label, value, bg, color, sub }) => (
+          <div key={label} className={`rounded-xl ${bg} border-0 p-4 shadow-sm`}>
+            <p className={`text-2xl font-bold ${color}`}>{loading ? '—' : value}</p>
+            <p className={`text-xs font-medium mt-1 ${sub}`}>{label}</p>
           </div>
         ))}
       </div>

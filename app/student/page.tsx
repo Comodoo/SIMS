@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/lib/auth-context';
 import { query } from '@/lib/graphql';
-import { Award, BookOpen, Calendar, ClipboardList } from 'lucide-react';
+import { Award, BookOpen, Calendar, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
@@ -76,6 +76,7 @@ export default function StudentDashboard() {
   const [resultCards, setResultCards] = useState<any[]>([]);
   const [todayClasses, setTodayClasses] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [subjectPage, setSubjectPage] = useState(1);
 
   useEffect(() => {
     if (!user || !token) return;
@@ -114,7 +115,14 @@ export default function StudentDashboard() {
     fetchData();
   }, [user, token]);
 
+  const SUBJECTS_PER_PAGE = 5;
+
   const activeEnrollments = enrollments.filter(e => e.status === 'active');
+  const subjectTotalPages = Math.max(1, Math.ceil(activeEnrollments.length / SUBJECTS_PER_PAGE));
+  const pagedEnrollments = activeEnrollments.slice(
+    (subjectPage - 1) * SUBJECTS_PER_PAGE,
+    subjectPage * SUBJECTS_PER_PAGE,
+  );
   const presentCount = attendanceRecords.filter(a => a.status === 'present').length;
   const attendancePct = attendanceRecords.length > 0
     ? Math.round((presentCount / attendanceRecords.length) * 100)
@@ -133,53 +141,63 @@ export default function StudentDashboard() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Subjects</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loading ? '…' : activeEnrollments.length}</div>
-            <p className="text-xs text-muted-foreground">Enrolled this term</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Attendance</CardTitle>
-            <ClipboardList className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loading ? '…' : `${attendancePct}%`}</div>
-            <p className="text-xs text-muted-foreground">{presentCount} / {attendanceRecords.length} present</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Results</CardTitle>
-            <Award className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{loading ? '…' : resultCards.length}</div>
-            <p className="text-xs text-muted-foreground">{passedSubjects} passed</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Timetable</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {loading ? '…' : todayClasses === null ? '—' : todayClasses}
+        <Card className="bg-gradient-to-br from-blue-50 to-indigo-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <BookOpen className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-blue-800">{loading ? '…' : activeEnrollments.length}</div>
+                <p className="text-xs text-blue-600 font-medium">Subjects enrolled</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {todayClasses !== null
-                ? <><Link href="/student/timetable" className="text-primary hover:underline">Classes today</Link></>
-                : <Link href="/student/timetable" className="text-primary hover:underline">View schedule</Link>}
-            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-green-50 to-emerald-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <ClipboardList className="h-5 w-5 text-green-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-800">{loading ? '…' : `${attendancePct}%`}</div>
+                <p className="text-xs text-green-600 font-medium">{presentCount}/{attendanceRecords.length} present</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-amber-50 to-yellow-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <Award className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-amber-800">{loading ? '…' : resultCards.length}</div>
+                <p className="text-xs text-amber-600 font-medium">{passedSubjects} passed</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-violet-100 border-0 shadow-sm">
+          <CardContent className="pt-5 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/70 shadow-sm">
+                <Calendar className="h-5 w-5 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-800">
+                  {loading ? '…' : todayClasses === null ? '—' : todayClasses}
+                </div>
+                <p className="text-xs text-purple-600 font-medium">
+                  <Link href="/student/timetable" className="hover:underline">Classes today</Link>
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -204,9 +222,16 @@ export default function StudentDashboard() {
       {/* Enrolled subjects */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <BookOpen className="h-4 w-4" />
-            My Enrolled Subjects
+          <CardTitle className="text-base flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4" />
+              My Enrolled Subjects
+            </span>
+            {!loading && activeEnrollments.length > 0 && (
+              <span className="text-xs font-normal text-muted-foreground">
+                {activeEnrollments.length} subject{activeEnrollments.length !== 1 ? 's' : ''}
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -219,22 +244,52 @@ export default function StudentDashboard() {
               Not enrolled in any subjects yet. Contact your admin or teacher.
             </p>
           ) : (
-            <div className="space-y-2">
-              {activeEnrollments.map(e => (
-                <div key={e.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
-                  <div>
-                    <p className="font-medium text-sm">{e.course.name}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{e.course.course_code}</p>
+            <>
+              <div className="space-y-2">
+                {pagedEnrollments.map(e => (
+                  <div key={e.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                    <div>
+                      <p className="font-medium text-sm">{e.course.name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">{e.course.course_code}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {e.course.semester && (
+                        <span className="text-xs text-muted-foreground">{e.course.semester}</span>
+                      )}
+                      <Badge variant="default">Active</Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {e.course.semester && (
-                      <span className="text-xs text-muted-foreground">{e.course.semester}</span>
-                    )}
-                    <Badge variant="default">Active</Badge>
+                ))}
+              </div>
+
+              {subjectTotalPages > 1 && (
+                <div className="flex items-center justify-between mt-4 pt-3 border-t">
+                  <span className="text-xs text-muted-foreground">
+                    Page {subjectPage} of {subjectTotalPages}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={subjectPage === 1}
+                      onClick={() => setSubjectPage(p => p - 1)}
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-7 w-7"
+                      disabled={subjectPage === subjectTotalPages}
+                      onClick={() => setSubjectPage(p => p + 1)}
+                    >
+                      <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
