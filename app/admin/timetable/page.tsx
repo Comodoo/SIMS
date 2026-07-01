@@ -99,24 +99,34 @@ function fmt12(t: string): string {
 // ---------------------------------------------------------------------------
 // 12-hour time picker (emits/accepts "HH:MM" 24-hr strings for the backend)
 // ---------------------------------------------------------------------------
-function TimeInput12({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const parts  = value ? value.split(':') : [];
-  const h24    = parts[0] !== undefined ? parseInt(parts[0], 10) : NaN;
-  const m      = parts[1] !== undefined ? parseInt(parts[1], 10) : NaN;
-  const period = !isNaN(h24) ? (h24 >= 12 ? 'PM' : 'AM') : 'AM';
-  const h12    = !isNaN(h24) ? (h24 % 12 === 0 ? 12 : h24 % 12) : '';
-  const minVal = !isNaN(m) ? m : '';
+function parseTime(v: string) {
+  const parts = v ? v.split(':') : [];
+  const h24 = parts[0] !== undefined ? parseInt(parts[0], 10) : NaN;
+  const m   = parts[1] !== undefined ? parseInt(parts[1], 10) : NaN;
+  return {
+    h12:    !isNaN(h24) ? String(h24 % 12 === 0 ? 12 : h24 % 12) : '',
+    min:    !isNaN(m)   ? String(m) : '',
+    period: !isNaN(h24) ? (h24 >= 12 ? 'PM' : 'AM') : 'AM',
+  };
+}
 
-  function emit(hour12: number | string, minute: number | string, p: string) {
-    if (hour12 === '' || minute === '') return;
-    let out = Number(hour12) % 12;
-    if (p === 'PM') out += 12;
-    onChange(`${String(out).padStart(2, '0')}:${String(Number(minute)).padStart(2, '0')}`);
+function TimeInput12({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [sel, setSel] = useState(() => parseTime(value));
+
+  // Sync when parent resets the value (e.g. form clear)
+  useEffect(() => { setSel(parseTime(value)); }, [value]);
+
+  function pick(h: string, min: string, period: string) {
+    setSel({ h12: h, min, period });
+    if (!h || min === '') return; // emit only when both are filled
+    let h24 = Number(h) % 12;
+    if (period === 'PM') h24 += 12;
+    onChange(`${String(h24).padStart(2, '0')}:${String(Number(min)).padStart(2, '0')}`);
   }
 
   return (
     <div className="flex gap-1">
-      <Select value={h12 !== '' ? String(h12) : ''} onValueChange={v => emit(v, minVal, period)}>
+      <Select value={sel.h12} onValueChange={v => pick(v, sel.min, sel.period)}>
         <SelectTrigger className="h-9 flex-1 min-w-[52px]"><SelectValue placeholder="hh" /></SelectTrigger>
         <SelectContent>
           {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
@@ -124,7 +134,7 @@ function TimeInput12({ value, onChange }: { value: string; onChange: (v: string)
           ))}
         </SelectContent>
       </Select>
-      <Select value={minVal !== '' ? String(minVal) : ''} onValueChange={v => emit(h12, v, period)}>
+      <Select value={sel.min} onValueChange={v => pick(sel.h12, v, sel.period)}>
         <SelectTrigger className="h-9 flex-1 min-w-[52px]"><SelectValue placeholder="mm" /></SelectTrigger>
         <SelectContent>
           {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(mn => (
@@ -132,7 +142,7 @@ function TimeInput12({ value, onChange }: { value: string; onChange: (v: string)
           ))}
         </SelectContent>
       </Select>
-      <Select value={period} onValueChange={p => emit(h12, minVal, p)}>
+      <Select value={sel.period} onValueChange={p => pick(sel.h12, sel.min, p)}>
         <SelectTrigger className="h-9 w-[62px]"><SelectValue /></SelectTrigger>
         <SelectContent>
           <SelectItem value="AM">AM</SelectItem>
