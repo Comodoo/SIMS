@@ -111,7 +111,7 @@ export default function SIMSLandingPage() {
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-5 leading-tight">
               Student Information and Teacher{' '}
               <span className="text-primary">Attendance</span>{' '}
-              Management System at Bwejuu School 
+              Management System at Bwejuu School
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
               Manage students, teachers, attendance, results, and timetables — all in one unified platform built for your school.

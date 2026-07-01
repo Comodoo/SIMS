@@ -117,7 +117,7 @@ function PasswordInput({ value, onChange, placeholder }: { value: string; onChan
 // Page
 // ---------------------------------------------------------------------------
 const emptyForm = {
-  firstName: '', lastName: '', email: '', username: '', password: '', confirmPassword: '',
+  firstName: '', lastName: '', username: '', password: '', confirmPassword: '',
   studentNumber: '', gradeLevel: '',
   academicYear: `${new Date().getFullYear()}/${new Date().getFullYear() + 1}`,
 };
@@ -140,7 +140,7 @@ export default function ITTechStudentsPage() {
   const [viewStudent, setViewStudent] = useState<Student | null>(null);
 
   const [editStudent, setEditStudent] = useState<Student | null>(null);
-  const [editForm, setEditForm]   = useState({ firstName: '', lastName: '', email: '', gradeLevel: '', status: 'active', phone: '' });
+  const [editForm, setEditForm]   = useState({ firstName: '', lastName: '', studentNumber: '', gradeLevel: '', status: 'active', phone: '' });
   const [editErr, setEditErr]     = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
@@ -183,7 +183,7 @@ export default function ITTechStudentsPage() {
 
   async function handleRegister() {
     setFormErr('');
-    if (!form.firstName || !form.lastName || !form.email || !form.username || !form.password || !form.studentNumber) {
+    if (!form.firstName || !form.lastName || !form.username || !form.password || !form.studentNumber) {
       setFormErr('Please fill in all required fields.'); return;
     }
     if (form.password !== form.confirmPassword) { setFormErr('Passwords do not match.'); return; }
@@ -192,7 +192,7 @@ export default function ITTechStudentsPage() {
     try {
       const r = await mutate<any>(REGISTER, {
         input: {
-          username: form.username, email: form.email, password: form.password,
+          username: form.username, email: `${form.username}@bwejuu.sch.tz`, password: form.password,
           firstName: form.firstName, lastName: form.lastName, studentNumber: form.studentNumber,
           gradeLevel: form.gradeLevel || null, academicYear: form.academicYear,
         },
@@ -214,7 +214,7 @@ export default function ITTechStudentsPage() {
     setEditStudent(s);
     setEditForm({
       firstName: s.first_name, lastName: s.last_name,
-      email: s.user.email, gradeLevel: s.grade_level ?? '',
+      studentNumber: s.student_number, gradeLevel: s.grade_level ?? '',
       status: s.status, phone: s.user.phone ?? '',
     });
     setEditErr('');
@@ -222,8 +222,8 @@ export default function ITTechStudentsPage() {
 
   async function handleEdit() {
     if (!editStudent || !token) return;
-    if (!editForm.firstName || !editForm.lastName || !editForm.email) {
-      setEditErr('Name and email are required.'); return;
+    if (!editForm.firstName || !editForm.lastName) {
+      setEditErr('First and last name are required.'); return;
     }
     setEditSaving(true);
     try {
@@ -231,7 +231,7 @@ export default function ITTechStudentsPage() {
         studentId: editStudent.id,
         input: {
           firstName: editForm.firstName, lastName: editForm.lastName,
-          email: editForm.email, gradeLevel: editForm.gradeLevel || null,
+          email: editStudent.user.email, gradeLevel: editForm.gradeLevel || null,
           status: editForm.status, phone: editForm.phone || null,
         },
       }, token);
@@ -351,7 +351,6 @@ export default function ITTechStudentsPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Student #</TableHead>
-                <TableHead>Email</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -359,9 +358,9 @@ export default function ITTechStudentsPage() {
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
               ) : paged.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No students found</TableCell></TableRow>
+                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No students found</TableCell></TableRow>
               ) : paged.map(s => (
                 <TableRow key={s.id} className="hover:bg-muted/30">
                   <TableCell>
@@ -373,7 +372,6 @@ export default function ITTechStudentsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{s.student_number}</TableCell>
-                  <TableCell className="text-sm">{s.user.email}</TableCell>
                   <TableCell className="text-sm">{s.grade_level ?? '—'}</TableCell>
                   <TableCell>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor[s.status] ?? 'bg-gray-100 text-gray-700'}`}>
@@ -472,8 +470,8 @@ export default function ITTechStudentsPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Email</Label>
-                <Input type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} />
+                <Label className="text-xs">Student Number</Label>
+                <Input value={editForm.studentNumber} readOnly className="bg-muted text-muted-foreground cursor-not-allowed" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Phone</Label>
@@ -528,10 +526,6 @@ export default function ITTechStudentsPage() {
             <div className="space-y-1.5">
               <Label className="text-xs">Username *</Label>
               <Input value={form.username} onChange={e => f('username', e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Email *</Label>
-              <Input type="email" value={form.email} onChange={e => f('email', e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Student Number *</Label>

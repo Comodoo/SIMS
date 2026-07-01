@@ -80,10 +80,9 @@ interface StaffMember { id: string; staff_number: string; user: { first_name: st
 interface ClassGroup { id: string; name: string; parentId: string | null; }
 
 // A single row in the batch-create form
-// classGroupLevel = selected parent level; classGroup = final value (sub-class or level)
-interface SlotRow { classGroupLevel: string; classGroup: string; startTime: string; endTime: string; room: string; }
+interface SlotRow { subjectId: string; classGroupLevel: string; classGroup: string; startTime: string; endTime: string; room: string; }
 
-const emptyRow = (): SlotRow => ({ classGroupLevel: '', classGroup: '', startTime: '', endTime: '', room: '' });
+const emptyRow = (): SlotRow => ({ subjectId: '', classGroupLevel: '', classGroup: '', startTime: '', endTime: '', room: '' });
 
 // ---------------------------------------------------------------------------
 // Pagination
@@ -145,7 +144,6 @@ export default function AdminTimetablePage() {
 
   // Batch-create dialog
   const [createOpen, setCreateOpen] = useState(false);
-  const [batchSubjectId, setBatchSubjectId] = useState('');
   const [batchTeacherId, setBatchTeacherId] = useState('');
   const [batchDay, setBatchDay] = useState('');
   const [batchRows, setBatchRows] = useState<SlotRow[]>([emptyRow()]);
@@ -263,7 +261,7 @@ export default function AdminTimetablePage() {
   // Batch create
   // ---------------------------------------------------------------------------
   function openCreate() {
-    setBatchSubjectId(''); setBatchTeacherId(''); setBatchDay(activeDay);
+    setBatchTeacherId(''); setBatchDay(activeDay);
     setBatchRows([emptyRow()]); setBatchError('');
     setCreateOpen(true);
   }
@@ -283,16 +281,16 @@ export default function AdminTimetablePage() {
   }
 
   async function handleBatchCreate() {
-    const validRows = batchRows.filter(r => r.classGroup && r.startTime && r.endTime);
-    if (!batchSubjectId || !batchTeacherId || !batchDay || validRows.length === 0) {
-      setBatchError('Fill in subject, teacher, day, and at least one complete row.'); return;
+    const validRows = batchRows.filter(r => r.subjectId && r.classGroup && r.startTime && r.endTime);
+    if (!batchTeacherId || !batchDay || validRows.length === 0) {
+      setBatchError('Select a teacher, day, and fill at least one complete row (subject, class group, times).'); return;
     }
     setBatchSaving(true); setBatchError('');
     try {
       for (const row of validRows) {
         const res = await mutate<any>(CREATE_SLOT_MUTATION, {
           input: {
-            subjectId: batchSubjectId,
+            subjectId: row.subjectId,
             teacherId: batchTeacherId,
             semesterId: selectedSemester,
             classGroup: row.classGroup,
@@ -303,7 +301,8 @@ export default function AdminTimetablePage() {
           },
         }, token ?? undefined);
         if (!res.createTimetableSlot?.success) {
-          setBatchError(`Row "${row.classGroup}": ${res.createTimetableSlot?.message || 'Failed.'}`);
+          const subj = subjects.find(s => s.id === row.subjectId)?.name ?? row.subjectId;
+          setBatchError(`Row "${subj} / ${row.classGroup}": ${res.createTimetableSlot?.message || 'Failed.'}`);
           return;
         }
       }
@@ -644,46 +643,33 @@ export default function AdminTimetablePage() {
           <div className="overflow-y-auto flex-1 pr-1 space-y-6 pt-3">
             {batchError && <p className="text-sm text-destructive bg-red-50 border border-red-200 rounded-lg px-4 py-2">{batchError}</p>}
 
-            {/* Subject + Teacher + Day */}
-            <div className="bg-muted/30 rounded-xl p-4 space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Step 1 — Select Subject, Teacher &amp; Day</p>
-              <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Subject *</Label>
-                <Select value={batchSubjectId} onValueChange={setBatchSubjectId}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Select subject" /></SelectTrigger>
-                  <SelectContent>
-                    {subjects.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.name} — {s.course_code}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Teacher + Day */}
+            <div className="bg-muted/30 rounded-xl p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">Step 1 — Select Teacher &amp; Day</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Teacher *</Label>
+                  <Select value={batchTeacherId} onValueChange={setBatchTeacherId}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Select teacher" /></SelectTrigger>
+                    <SelectContent>
+                      {staff.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.user.first_name} {s.user.last_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium">Day *</Label>
+                  <Select value={batchDay} onValueChange={setBatchDay}>
+                    <SelectTrigger className="h-10"><SelectValue placeholder="Select day" /></SelectTrigger>
+                    <SelectContent>
+                      {DAYS.map(d => <SelectItem key={d} value={d}>{DAY_LABELS[d]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Teacher *</Label>
-                <Select value={batchTeacherId} onValueChange={setBatchTeacherId}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Select teacher" /></SelectTrigger>
-                  <SelectContent>
-                    {staff.map(s => (
-                      <SelectItem key={s.id} value={s.id}>
-                        {s.user.first_name} {s.user.last_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-sm font-medium">Day *</Label>
-                <Select value={batchDay} onValueChange={setBatchDay}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Select day" /></SelectTrigger>
-                  <SelectContent>
-                    {DAYS.map(d => <SelectItem key={d} value={d}>{DAY_LABELS[d]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
             </div>
 
             {/* Class group + time rows */}
@@ -697,11 +683,12 @@ export default function AdminTimetablePage() {
               </div>
 
               {/* Header row */}
-              <div className="grid grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_120px_120px_120px_36px] gap-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+              <div className="grid grid-cols-[minmax(160px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_100px_100px_90px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+                <span>Subject *</span>
                 <span>Level *</span>
                 <span>Class Group *</span>
-                <span>Start Time *</span>
-                <span>End Time *</span>
+                <span>Start *</span>
+                <span>End *</span>
                 <span>Room</span>
                 <span />
               </div>
@@ -711,8 +698,17 @@ export default function AdminTimetablePage() {
                 {batchRows.map((row, i) => {
                   const subs = subsOf(row.classGroupLevel);
                   return (
-                    <div key={i} className="grid grid-cols-[minmax(140px,1fr)_minmax(140px,1fr)_120px_120px_120px_36px] gap-3 items-center bg-background rounded-lg border px-3 py-2">
-                      {/* Step 1 — level */}
+                    <div key={i} className="grid grid-cols-[minmax(160px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_100px_100px_90px_36px] gap-2 items-center bg-background rounded-lg border px-3 py-2">
+                      {/* Subject */}
+                      <Select value={row.subjectId} onValueChange={v => updateRow(i, 'subjectId', v)}>
+                        <SelectTrigger className="h-10"><SelectValue placeholder="Subject…" /></SelectTrigger>
+                        <SelectContent>
+                          {subjects.map(s => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {/* Level */}
                       <Select value={row.classGroupLevel} onValueChange={v => updateRow(i, 'classGroupLevel', v)}>
                         <SelectTrigger className="h-10"><SelectValue placeholder="Level…" /></SelectTrigger>
                         <SelectContent>
@@ -721,7 +717,7 @@ export default function AdminTimetablePage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {/* Step 2 — sub-class (or level itself when no subs) */}
+                      {/* Sub-class */}
                       <Select
                         value={row.classGroup}
                         onValueChange={v => updateRow(i, 'classGroup', v)}
@@ -745,24 +741,9 @@ export default function AdminTimetablePage() {
                           )}
                         </SelectContent>
                       </Select>
-                      <Input
-                        type="time"
-                        value={row.startTime}
-                        onChange={e => updateRow(i, 'startTime', e.target.value)}
-                        className="h-10"
-                      />
-                      <Input
-                        type="time"
-                        value={row.endTime}
-                        onChange={e => updateRow(i, 'endTime', e.target.value)}
-                        className="h-10"
-                      />
-                      <Input
-                        placeholder="Room 12"
-                        value={row.room}
-                        onChange={e => updateRow(i, 'room', e.target.value)}
-                        className="h-10"
-                      />
+                      <Input type="time" value={row.startTime} onChange={e => updateRow(i, 'startTime', e.target.value)} className="h-10" />
+                      <Input type="time" value={row.endTime} onChange={e => updateRow(i, 'endTime', e.target.value)} className="h-10" />
+                      <Input placeholder="Room…" value={row.room} onChange={e => updateRow(i, 'room', e.target.value)} className="h-10" />
                       <button
                         type="button"
                         onClick={() => removeRow(i)}
@@ -791,11 +772,11 @@ export default function AdminTimetablePage() {
             <Button
               className="flex-1"
               onClick={handleBatchCreate}
-              disabled={batchSaving || !batchSubjectId || !batchTeacherId || !batchDay}
+              disabled={batchSaving || !batchTeacherId || !batchDay}
             >
               {batchSaving
                 ? 'Creating…'
-                : `Create ${batchRows.filter(r => r.classGroup && r.startTime && r.endTime).length || ''} Slot${batchRows.filter(r => r.classGroup && r.startTime && r.endTime).length !== 1 ? 's' : ''}`}
+                : `Create ${batchRows.filter(r => r.subjectId && r.classGroup && r.startTime && r.endTime).length || ''} Slot${batchRows.filter(r => r.subjectId && r.classGroup && r.startTime && r.endTime).length !== 1 ? 's' : ''}`}
             </Button>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
           </div>
