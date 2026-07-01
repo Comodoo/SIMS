@@ -85,6 +85,65 @@ interface SlotRow { subjectId: string; classGroupLevel: string; classGroup: stri
 const emptyRow = (): SlotRow => ({ subjectId: '', classGroupLevel: '', classGroup: '', startTime: '', endTime: '', room: '' });
 
 // ---------------------------------------------------------------------------
+// Format "HH:MM" → "H:MM AM/PM" for display
+// ---------------------------------------------------------------------------
+function fmt12(t: string): string {
+  if (!t) return '—';
+  const [hStr, mStr] = t.split(':');
+  const h = parseInt(hStr, 10);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${mStr ?? '00'} ${period}`;
+}
+
+// ---------------------------------------------------------------------------
+// 12-hour time picker (emits/accepts "HH:MM" 24-hr strings for the backend)
+// ---------------------------------------------------------------------------
+function TimeInput12({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const parts  = value ? value.split(':') : [];
+  const h24    = parts[0] !== undefined ? parseInt(parts[0], 10) : NaN;
+  const m      = parts[1] !== undefined ? parseInt(parts[1], 10) : NaN;
+  const period = !isNaN(h24) ? (h24 >= 12 ? 'PM' : 'AM') : 'AM';
+  const h12    = !isNaN(h24) ? (h24 % 12 === 0 ? 12 : h24 % 12) : '';
+  const minVal = !isNaN(m) ? m : '';
+
+  function emit(hour12: number | string, minute: number | string, p: string) {
+    if (hour12 === '' || minute === '') return;
+    let out = Number(hour12) % 12;
+    if (p === 'PM') out += 12;
+    onChange(`${String(out).padStart(2, '0')}:${String(Number(minute)).padStart(2, '0')}`);
+  }
+
+  return (
+    <div className="flex gap-1">
+      <Select value={h12 !== '' ? String(h12) : ''} onValueChange={v => emit(v, minVal, period)}>
+        <SelectTrigger className="h-9 flex-1 min-w-[52px]"><SelectValue placeholder="hh" /></SelectTrigger>
+        <SelectContent>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+            <SelectItem key={h} value={String(h)}>{String(h).padStart(2, '0')}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={minVal !== '' ? String(minVal) : ''} onValueChange={v => emit(h12, v, period)}>
+        <SelectTrigger className="h-9 flex-1 min-w-[52px]"><SelectValue placeholder="mm" /></SelectTrigger>
+        <SelectContent>
+          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(mn => (
+            <SelectItem key={mn} value={String(mn)}>{String(mn).padStart(2, '0')}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={period} onValueChange={p => emit(h12, minVal, p)}>
+        <SelectTrigger className="h-9 w-[62px]"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="AM">AM</SelectItem>
+          <SelectItem value="PM">PM</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Pagination
 // ---------------------------------------------------------------------------
 const PAGE_SIZE = 10;
@@ -454,8 +513,8 @@ export default function AdminTimetablePage() {
                 {timeBands.map(({ start, end }) => (
                   <tr key={`${start}-${end}`} className="border-b last:border-b-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3 border-r align-top">
-                      <p className="font-semibold tabular-nums text-xs">{start}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">– {end}</p>
+                      <p className="font-semibold tabular-nums text-xs">{fmt12(start)}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">– {fmt12(end)}</p>
                     </td>
                     {DAYS.map(day => {
                       const cell = wSlots.filter(s => s.dayOfWeek === day && s.startTime === start && s.endTime === end);
@@ -578,7 +637,7 @@ export default function AdminTimetablePage() {
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {slot.startTime}<br />{slot.endTime}
+                          {fmt12(slot.startTime)}<br />{fmt12(slot.endTime)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -683,7 +742,7 @@ export default function AdminTimetablePage() {
               </div>
 
               {/* Header row */}
-              <div className="grid grid-cols-[minmax(160px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_100px_100px_90px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+              <div className="grid grid-cols-[minmax(160px,1.5fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(195px,auto)_minmax(195px,auto)_80px_36px] gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
                 <span>Subject *</span>
                 <span>Level *</span>
                 <span>Class Group *</span>
@@ -698,13 +757,13 @@ export default function AdminTimetablePage() {
                 {batchRows.map((row, i) => {
                   const subs = subsOf(row.classGroupLevel);
                   return (
-                    <div key={i} className="grid grid-cols-[minmax(160px,1.5fr)_minmax(120px,1fr)_minmax(120px,1fr)_100px_100px_90px_36px] gap-2 items-center bg-background rounded-lg border px-3 py-2">
+                    <div key={i} className="grid grid-cols-[minmax(160px,1.5fr)_minmax(100px,1fr)_minmax(100px,1fr)_minmax(195px,auto)_minmax(195px,auto)_80px_36px] gap-2 items-center bg-background rounded-lg border px-3 py-2">
                       {/* Subject */}
                       <Select value={row.subjectId} onValueChange={v => updateRow(i, 'subjectId', v)}>
                         <SelectTrigger className="h-10"><SelectValue placeholder="Subject…" /></SelectTrigger>
                         <SelectContent>
                           {subjects.map(s => (
-                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                            <SelectItem key={s.id} value={s.id}>{s.course_code} — {s.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -741,8 +800,8 @@ export default function AdminTimetablePage() {
                           )}
                         </SelectContent>
                       </Select>
-                      <Input type="time" value={row.startTime} onChange={e => updateRow(i, 'startTime', e.target.value)} className="h-10" />
-                      <Input type="time" value={row.endTime} onChange={e => updateRow(i, 'endTime', e.target.value)} className="h-10" />
+                      <TimeInput12 value={row.startTime} onChange={v => updateRow(i, 'startTime', v)} />
+                      <TimeInput12 value={row.endTime} onChange={v => updateRow(i, 'endTime', v)} />
                       <Input placeholder="Room…" value={row.room} onChange={e => updateRow(i, 'room', e.target.value)} className="h-10" />
                       <button
                         type="button"
@@ -877,23 +936,19 @@ export default function AdminTimetablePage() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label>Start</Label>
-                <Input type="time" value={editForm.startTime} onChange={e => setEditForm(p => ({ ...p, startTime: e.target.value }))} />
+                <Label>Start Time</Label>
+                <TimeInput12 value={editForm.startTime} onChange={v => setEditForm(p => ({ ...p, startTime: v }))} />
               </div>
               <div className="space-y-1">
-                <Label>End</Label>
-                <Input type="time" value={editForm.endTime} onChange={e => setEditForm(p => ({ ...p, endTime: e.target.value }))} />
+                <Label>End Time</Label>
+                <TimeInput12 value={editForm.endTime} onChange={v => setEditForm(p => ({ ...p, endTime: v }))} />
               </div>
-              <div className="space-y-1">
-                <Label>Room</Label>
-                <Input
-                  placeholder="optional"
-                  value={editForm.room}
-                  onChange={e => setEditForm(p => ({ ...p, room: e.target.value }))}
-                />
-              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Room</Label>
+              <Input placeholder="optional" value={editForm.room} onChange={e => setEditForm(p => ({ ...p, room: e.target.value }))} />
             </div>
 
             <div className="flex gap-2 pt-1">
